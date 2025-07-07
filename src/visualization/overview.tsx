@@ -1,9 +1,19 @@
-import { Background, ReactFlow, useReactFlow, type Edge } from "@xyflow/react";
+import {
+  Background,
+  ReactFlow,
+  useReactFlow,
+  type Edge,
+  type Node,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useProgramStore, type Program } from "../hooks/program";
+import {
+  useProgramStore,
+  type Program,
+  type ProgramItem,
+} from "../hooks/program";
 import { Type, type Static } from "@sinclair/typebox";
 import { find, groupBy, includes, map, pipe } from "rambda";
-import Dagre, { type Node } from "@dagrejs/dagre";
+import Dagre from "@dagrejs/dagre";
 import { useEffect, useMemo } from "react";
 
 export default function Overview() {
@@ -47,31 +57,7 @@ const AttributesSchema = Type.Recursive((This) =>
 type AttributesSchema = Static<typeof AttributesSchema>;
 
 function buildData(program: Program) {
-  const groups = pipe(
-    program,
-    map(({ type, ...rest }) => {
-      let group;
-      switch (type) {
-        case "device":
-        case "adapter": {
-          group = "setup";
-          break;
-        }
-        case "encoder": {
-          group = "frame";
-          break;
-        }
-        default: {
-          group = "other";
-        }
-      }
-      return { type, ...rest, group };
-    }),
-    groupBy(({ group }) => group)
-  );
-  const setups = groups.setup || [];
-  const frames = groups.frame || [];
-  const nodes = setups.map((item, i) => ({
+  const nodes: Node[] = program.setup.map((item, i) => ({
     position: { x: 0, y: 0 },
     width: 60,
     id: `setup-${i}`,
@@ -80,19 +66,43 @@ function buildData(program: Program) {
 
   nodes.push(
     ...pipe(
-      frames,
-      map((frame, i) => ({
+      program.buffers,
+      map((buffer, i) => ({
         position: { x: 0, y: 0 },
-        id: `frame-${i}`,
-        data: { label: frame.type },
+        id: `buffer-${i}`,
+        data: { label: buffer.type },
       }))
     )
   );
 
-  const edges: Edge[] = [];
+  nodes.push(
+    ...pipe(
+      program.pass,
+      map((pass, i) => ({
+        position: { x: 0, y: 0 },
+        id: `pass-${i}`,
+        data: { label: pass.type },
+        className: "node active",
+      }))
+    )
+  );
+
   const device = pipe(
     nodes,
     find(({ data: { label } }) => label === "device")
+  );
+  const edges: Edge[] = [];
+  if (device === undefined) {
+    return [[], []];
+  }
+  edges.push(
+    ...nodes
+      .filter((n) => ["buffer", "encoder"].includes(n.data.label))
+      .map((item) => ({
+        id: `${item.id}-device`,
+        source: device!.id,
+        target: item.id,
+      }))
   );
   const adapter = pipe(
     nodes,
@@ -112,8 +122,8 @@ const getLayoutedElements = (nodes, edges, options) => {
   nodes.forEach((node) =>
     g.setNode(node.id, {
       ...node,
-      width: node.measured?.width ?? 0,
-      height: node.measured?.height ?? 0,
+      width: node.measured?.width ?? 120,
+      height: node.measured?.height ?? 50,
     })
   );
 

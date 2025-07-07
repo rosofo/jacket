@@ -1,10 +1,19 @@
 import { create } from "zustand/react";
-import { devtools } from "zustand/middleware";
 import { proxify, unproxify, type ProxifyOptions } from "../utils/proxify";
-import { act, useEffect } from "react";
+import { useEffect } from "react";
 import { produce } from "immer";
 
-export type Program = { type: string; value: object }[];
+export type ProgramItem<T extends [string, object] | [string, object, object]> =
+  {
+    type: T[0];
+    value: T[1];
+    ephemeral?: boolean;
+  } & (T[3] | object);
+export type Program = {
+  setup: ProgramItem<["device", GPUDevice] | ["adapter", GPUAdapter]>[];
+  buffers: ProgramItem<["buffer", GPUBuffer]>[];
+  pass: ProgramItem<["encoder", GPURenderPassEncoder | GPUCommandEncoder]>[];
+};
 export type ProgramStore = {
   program: Program;
   renderFunc: null | (() => void);
@@ -19,9 +28,10 @@ export type ProgramStore = {
 };
 
 export const useProgramStore = create<ProgramStore>((set, get) => ({
-  program: [],
+  program: { buffers: [], setup: [], pass: [] },
   renderFunc: null,
   evalProgram: async (js: string, vertex_wgsl: string, frag_wgsl: string) => {
+    set({ program: { buffers: [], setup: [], pass: [] } });
     const blob = new Blob([js], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
     const module = await import(
@@ -31,26 +41,31 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     URL.revokeObjectURL(url);
     const state = get();
 
+    let isSetup = true;
     const addMaybe = (result: object) => {
-      if (result instanceof GPUDevice) {
-        set(({ program }) => ({
-          program: produce((program) => {
-            program.push({ type: "device", value: result });
-          })(program),
-        }));
-      } else if (result instanceof GPUAdapter) {
-        set(({ program }) => ({
-          program: produce((program) => {
-            program.push({ type: "adapter", value: result });
-          })(program),
-        }));
-      } else if (result instanceof GPURenderPassEncoder) {
-        set(({ program }) => ({
-          program: produce((program) => {
-            program.push({ type: "encoder", value: result });
-          })(program),
-        }));
-      }
+      set(({ program }) => ({
+        program: produce((program: Program) => {
+          const ephemeral = !isSetup;
+          if (result instanceof GPUBuffer) {
+            program.buffers.push({ type: "buffer", value: result, ephemeral });
+          } else if (result instanceof GPUAdapter) {
+            program.setup.push({ type: "adapter", value: result });
+          } else if (result instanceof GPUDevice) {
+            program.setup.push({ type: "device", value: result });
+          } else if (result instanceof GPURenderPassEncoder) {
+            program.pass.push({ type: "encoder", value: result, ephemeral });
+          }
+        })(program),
+      }));
+    };
+    const clearEphemeral = () => {
+      set(({ program }) => ({
+        program: produce((program: Program) => {
+          program.buffers = program.buffers.filter((buf) => !buf.ephemeral);
+          program.setup = program.setup.filter((s) => !s.ephemeral);
+          program.pass = program.pass.filter((s) => !s.ephemeral);
+        })(program),
+      }));
     };
 
     const proxifyOpts: Partial<ProxifyOptions> = {
@@ -74,8 +89,15 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
       vertex_wgsl,
       frag_wgsl
     );
+
+    isSetup = false;
     if (typeof renderFunc === "function") {
-      set({ renderFunc });
+      set({
+        renderFunc: () => {
+          clearEphemeral();
+          renderFunc();
+        },
+      });
     } else {
       set({ renderFunc: null });
     }
