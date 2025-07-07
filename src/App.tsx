@@ -1,8 +1,16 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import "./App.css";
-import { useProgramStore, type GPUType, type Program } from "./hooks/program";
+import {
+  useProgramStore,
+  useRenderLoop,
+  type GPUType,
+  type Program,
+} from "./hooks/program";
 import Editor from "./Editor";
-import { z } from "zod/v4";
+import { Type, type Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
+import Overview from "./visualization/overview";
+import { ReactFlowProvider } from "@xyflow/react";
 
 const DEFAULT = "foo";
 
@@ -13,11 +21,11 @@ function App() {
         <Canvas />
       </div>
       <div className="box">
-        <div className="grid">
-          <Items />
-        </div>
+        <ReactFlowProvider>
+          <Overview />
+        </ReactFlowProvider>
       </div>
-      <div className="box subgrid">
+      <div className="box small far subgrid">
         <Editor defaultText={DEFAULT} />
       </div>
     </div>
@@ -32,6 +40,7 @@ function Canvas() {
   useEffect(() => {
     setCanvas(ref.current!);
   });
+  useRenderLoop();
   return (
     <div className="frame">
       <canvas ref={ref} className="primary"></canvas>
@@ -41,7 +50,7 @@ function Canvas() {
 
 interface GPUItemProps {
   name: string;
-  attributes: Record<string, ReactNode>;
+  attributes: AttributesSchema;
 }
 function GPUItem(props: GPUItemProps) {
   return (
@@ -67,72 +76,4 @@ function GPUItem(props: GPUItemProps) {
       </div>
     </div>
   );
-}
-
-function Items() {
-  const program = useProgramStore((state) => state.program);
-  return (
-    <>
-      {program.map((value, i) => (
-        <GPUItem
-          key={i}
-          name={value.label || value.constructor.name.replace("GPU", "")}
-          attributes={attributesOf(value)}
-        />
-      ))}
-    </>
-  );
-}
-
-const AttributesSchema = z.lazy(() =>
-  z.preprocess(
-    (value) => {
-      const entries = [];
-      for (const k in value) {
-        entries.push([k, value[k]]);
-      }
-      return Object.fromEntries(entries);
-    },
-    z
-      .record(
-        z.string(),
-        z
-          .union([
-            z.string(),
-            z.number(),
-            z.array(z.union([z.string(), z.number()])),
-            z.null(),
-          ])
-          .catch(null)
-      )
-      .transform((attrs) =>
-        Object.fromEntries(
-          Object.entries(attrs).map(([k, v]) =>
-            k === "usage" ? [k, toUsages(v).join(" | ")] : [k, v]
-          )
-        )
-      )
-      .transform((attrs) =>
-        Object.fromEntries(
-          Object.entries(attrs).filter(
-            ([k, v]) => v !== null && v !== undefined
-          )
-        )
-      )
-  )
-);
-type Attributes = z.infer<typeof AttributesSchema>;
-function attributesOf(value: Program[0]) {
-  return AttributesSchema.parse(value);
-}
-
-function toUsages(value: number): (keyof GPUBufferUsage)[] {
-  const usages: (keyof GPUBufferUsage)[] = [];
-  for (const usage in GPUBufferUsage) {
-    const cmp = value & GPUBufferUsage[usage as keyof GPUBufferUsage];
-    if (cmp > 0) {
-      usages.push(usage as keyof GPUBufferUsage);
-    }
-  }
-  return usages;
 }

@@ -13,6 +13,12 @@
   --s5: calc(var(--s4) * var(--ratio));
 
   --measure: 60ch;
+
+  --color-light: lab(74.42% 0 -0.01);
+  --color-dark: lab(9.26% 0 0);
+  --contrast: 2.5;
+
+  background-color: var(--color-dark);
 }
 * {
   max-inline-size: var(--measure);
@@ -30,7 +36,17 @@ footer {
 
 .box {
   padding: var(--s1);
-  border: var(--s-5) solid;
+  background-color: hsl(from var(--color-dark) h s calc(l + var(--contrast)));
+
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    inset -2px -2px
+      hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast))),
+    inset 2px 2px hsl(from var(--color-dark) h s calc(l + 8 * var(--contrast))),
+    inset -3px -3px
+      hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast))),
+    inset 3px 3px hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast)));
 }
 
 .box * {
@@ -135,7 +151,8 @@ footer {
   align-items: center;
   border-radius: var(--s1);
   gap: 0.5rem;
-  outline: 2px solid gray;
+  outline: 2px solid
+    hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast)));
   padding-inline: var(--s-2);
   padding-block: var(--s-5);
 
@@ -147,7 +164,9 @@ footer {
   }
 
   &::after {
-    background-color: gray;
+    background-color: hsl(
+      from var(--color-dark) h s calc(l + 2 * var(--contrast))
+    );
     align-self: stretch;
     min-width: 0.1rem;
     content: "";
@@ -159,6 +178,18 @@ footer {
   width: 100%;
   height: 30vh;
   grid-column: 1 / span 2;
+
+  display: flex;
+
+  .monaco-inner {
+    --vscode-editor-background: hsl(
+      from var(--color-dark) h s calc(l - 1 * var(--contrast))
+    );
+  }
+}
+
+.box.small {
+  padding: var(--s-1);
 }
 
 .layout {
@@ -168,4 +199,17 @@ footer {
   grid-template-columns: auto auto;
   gap: 1rem;
   padding: 1rem;
+}
+
+.far {
+  background: hsl(from var(--color-dark) h s calc(l - 1 * var(--contrast)));
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    inset -2px -2px
+      hsl(from var(--color-dark) h s calc(l + 1 * var(--contrast))),
+    inset 2px 2px hsl(from var(--color-dark) h s calc(l + 1 * var(--contrast))),
+    inset -3px -3px
+      hsl(from var(--color-dark) h s calc(l + 8 * var(--contrast))),
+    inset 3px 3px hsl(from var(--color-dark) h s calc(l + 1 * var(--contrast)));
 }

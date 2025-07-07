@@ -23,6 +23,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "types": ["@webgpu/types"]
+    // "paths": { "react-monaco-editor": ["./react-monaco-editor/src/index.ts"] }
   },
   "include": ["src"]
 }
