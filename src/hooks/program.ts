@@ -2,18 +2,29 @@ import { create } from "zustand/react";
 import { proxify, unproxify, type ProxifyOptions } from "../utils/proxify";
 import { useEffect } from "react";
 import { produce } from "immer";
+import { v4 as uuid } from "uuid";
+import { groupBy, pipe } from "rambda";
 
-export type ProgramItem<T extends [string, object] | [string, object, object]> =
-  {
-    type: T[0];
-    value: T[1];
-    ephemeral?: boolean;
-  } & (T[3] | object);
-export type Program = {
-  setup: ProgramItem<["device", GPUDevice] | ["adapter", GPUAdapter]>[];
-  buffers: ProgramItem<["buffer", GPUBuffer]>[];
-  pass: ProgramItem<["encoder", GPURenderPassEncoder | GPUCommandEncoder]>[];
-};
+type Value =
+  | GPUBuffer
+  | GPUDevice
+  | GPUAdapter
+  | GPURenderPassEncoder
+  | GPURenderPipeline
+  | GPUCommandEncoder
+  | GPUPipelineLayout
+  | GPUBindGroup
+  | GPUBindGroupLayout;
+type ValueTypeName<T extends { __brand: string }> =
+  T["__brand"] extends `GPU${infer Name}` ? Name : never;
+export type ItemMeta = { parentId?: string; id: string; ephemeral?: boolean };
+export type _Item<V = Value> = V extends Value
+  ? { type: ValueTypeName<V>; value: V }
+  : never;
+export type Item = _Item;
+export type ProgramItem = Item & ItemMeta;
+export type Program = ProgramItem[];
+
 export type ProgramStore = {
   program: Program;
   renderFunc: null | (() => void);
@@ -28,10 +39,10 @@ export type ProgramStore = {
 };
 
 export const useProgramStore = create<ProgramStore>((set, get) => ({
-  program: { buffers: [], setup: [], pass: [] },
+  program: [],
   renderFunc: null,
   evalProgram: async (js: string, vertex_wgsl: string, frag_wgsl: string) => {
-    set({ program: { buffers: [], setup: [], pass: [] } });
+    set({ program: [] });
     const blob = new Blob([js], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
     const module = await import(
@@ -42,29 +53,40 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     const state = get();
 
     let isSetup = true;
+    const ids = {};
     const addMaybe = (result: object) => {
       set(({ program }) => ({
         program: produce((program: Program) => {
           const ephemeral = !isSetup;
+          const id = uuid();
           if (result instanceof GPUBuffer) {
-            program.buffers.push({ type: "buffer", value: result, ephemeral });
+            program.push({ type: "Buffer", value: result, ephemeral, id });
           } else if (result instanceof GPUAdapter) {
-            program.setup.push({ type: "adapter", value: result });
+            program.push({ type: "Adapter", value: result, id });
+            ids.adapter = id;
           } else if (result instanceof GPUDevice) {
-            program.setup.push({ type: "device", value: result });
+            program.push({
+              type: "Device",
+              value: result,
+              id,
+              parentId: ids.adapter,
+            });
+            ids.device = id;
           } else if (result instanceof GPURenderPassEncoder) {
-            program.pass.push({ type: "encoder", value: result, ephemeral });
+            program.push({
+              type: "RenderPassEncoder",
+              value: result,
+              id,
+              ephemeral,
+              parentId: ids.device,
+            });
           }
         })(program),
       }));
     };
     const clearEphemeral = () => {
       set(({ program }) => ({
-        program: produce((program: Program) => {
-          program.buffers = program.buffers.filter((buf) => !buf.ephemeral);
-          program.setup = program.setup.filter((s) => !s.ephemeral);
-          program.pass = program.pass.filter((s) => !s.ephemeral);
-        })(program),
+        program: program.filter((item) => !item.ephemeral),
       }));
     };
 

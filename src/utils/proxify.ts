@@ -29,7 +29,13 @@ function proxifyValue(
   currentCaller: CallChain,
   options: ProxifyOptions
 ): any {
-  const valueCallbackReturn = options.valueCallback(currentCaller, value);
+  const prevContext =
+    receiver[PROXIFY_INTERNAL_KEY]?.context || options.context;
+  const valueCallbackReturn = options.valueCallback(
+    currentCaller,
+    prevContext,
+    value
+  );
   const normalisedValue =
     valueCallbackReturn === undefined ? value : valueCallbackReturn.value;
 
@@ -37,6 +43,7 @@ function proxifyValue(
     [PROXIFY_INTERNAL_KEY]: {
       rawValue: value,
       valueCallbackResult: valueCallbackReturn,
+      context: valueCallbackReturn?.context || prevContext,
     },
   };
 
@@ -71,9 +78,14 @@ function proxifyValue(
       currentCaller = currentCaller.extend("executed");
       const functionExeccallbackReturn = options.functionExecCallback(
         currentCaller,
+        internalFields[PROXIFY_INTERNAL_KEY].context,
         actualArgs,
         actualFunction
       );
+      if (functionExeccallbackReturn?.context !== undefined) {
+        internalFields[PROXIFY_INTERNAL_KEY].context =
+          functionExeccallbackReturn.context;
+      }
       const result =
         functionExeccallbackReturn === undefined
           ? actualFunction(...actualArgs)
@@ -140,15 +152,21 @@ function callerString(caller: Caller) {
   }
 }
 
-export type ProxifyReturn = { value: any } | void;
+export type ProxifyReturn = { value: any; context?: any } | void;
 
 export interface ProxifyOptions {
-  valueCallback: (caller: CallChain, rawValue: any) => ProxifyReturn;
+  valueCallback: (
+    caller: CallChain,
+    context: any,
+    rawValue: any
+  ) => ProxifyReturn;
   functionExecCallback: (
     caller: CallChain,
+    context: any,
     args: any[],
     func: (...args: any[]) => any
   ) => ProxifyReturn;
+  context: any;
 }
 
 export function proxify<T extends object>(
