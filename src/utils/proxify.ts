@@ -11,24 +11,29 @@ export type BaseTypes =
   | "object"
   | "function";
 
-export interface JsProxyProperties {
-  value: any;
-  receiver: any;
-  target: any;
+export type Proxified<T, C extends object = object> = T & ProxifyInternal<T, C>;
+
+export interface JsProxyProperties<T, K extends keyof T, C extends object> {
+  value: T[K];
+  receiver: Proxified<T, C>;
+  target: T;
 }
 
-export interface ProxifyInternal {
-  rawValue: any;
-  valueCallbackResult: any;
+export interface ProxifyInternal<T, C> {
+  __proxify_internal: {
+    rawValue: T;
+    valueCallbackResult: unknown;
+    context: C;
+  };
 }
 
 const PROXIFY_INTERNAL_KEY = "__proxify_internal";
 
-function proxifyValue(
-  { value, receiver, target }: JsProxyProperties,
+function proxifyValue<T extends object, K extends keyof T, C extends object>(
+  { value, receiver, target }: JsProxyProperties<T, K, C>,
   currentCaller: CallChain,
-  options: ProxifyOptions
-): any {
+  options: ProxifyOptions<C>
+) {
   const prevContext =
     receiver[PROXIFY_INTERNAL_KEY]?.context || options.context;
   const valueCallbackReturn = options.valueCallback(
@@ -48,7 +53,7 @@ function proxifyValue(
   };
 
   if (normalisedValue instanceof Promise) {
-    let promise = new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
       normalisedValue
         .then((resolvedValue) => {
           resolve(
@@ -72,9 +77,10 @@ function proxifyValue(
     return Object.assign(promise, internalFields);
   } else if (normalisedValue instanceof Function) {
     // Do not make this an arrow function, it wont work for *this* reasons :p
-    const f = function (...actualArgs: any[]) {
+    const f = function (...actualArgs: unknown[]) {
       const t = this === receiver ? target : this;
-      const actualFunction = (...args: any[]) => normalisedValue.apply(t, args);
+      const actualFunction = (...args: unknown[]) =>
+        normalisedValue.apply(t, args);
       currentCaller = currentCaller.extend("executed");
       const functionExeccallbackReturn = options.functionExecCallback(
         currentCaller,
@@ -103,16 +109,27 @@ function proxifyValue(
   }
   return normalisedValue;
 }
-function handler(
+function handler<C extends object>(
   caller: CallChain = new CallChain([]),
-  options: ProxifyOptions
+  options: ProxifyOptions<C>
 ) {
   return {
-    get(target: any, property: string, receiver: any): any {
-      let value = target[property];
+    get(
+      target: Record<string, unknown>,
+      property: string,
+      receiver: Proxified<Record<string, unknown>, C>
+    ): unknown {
+      const value = target[property];
       if (property === PROXIFY_INTERNAL_KEY) return value;
-      let currentCaller = caller.extend({ name: property, type: typeof value });
-      return proxifyValue({ value, receiver, target }, currentCaller, options);
+      const currentCaller = caller.extend({
+        name: property,
+        type: typeof value,
+      });
+      return proxifyValue<Record<string, unknown>, string, C>(
+        { value, receiver, target },
+        currentCaller,
+        options
+      );
     },
   };
 }
@@ -152,39 +169,45 @@ function callerString(caller: Caller) {
   }
 }
 
-export type ProxifyReturn = { value: any; context?: any } | void;
+export type ProxifyReturn<C extends object> = {
+  value: unknown;
+  context?: C;
+} | void;
 
-export interface ProxifyOptions {
+export interface ProxifyOptions<C extends object = object> {
   valueCallback: (
     caller: CallChain,
-    context: any,
-    rawValue: any
-  ) => ProxifyReturn;
+    context: C,
+    rawValue: unknown
+  ) => ProxifyReturn<C>;
   functionExecCallback: (
     caller: CallChain,
-    context: any,
-    args: any[],
-    func: (...args: any[]) => any
-  ) => ProxifyReturn;
-  context: any;
+    context: C,
+    args: unknown[],
+    func: (...args: unknown[]) => unknown
+  ) => ProxifyReturn<C>;
+  context: C;
 }
 
-export function proxify<T extends object>(
+export function proxify<T extends object, C extends object = object>(
   target: T,
-  proxyifyOptions: Partial<ProxifyOptions> = {}
+  proxyifyOptions: Partial<ProxifyOptions<C>> = {}
 ): T {
-  const defaults: ProxifyOptions = {
+  const defaults: ProxifyOptions<C> = {
     valueCallback: () => {},
     functionExecCallback: () => {},
+    context: proxyifyOptions?.context || ({} as C),
   };
-  const options = { ...defaults, ...proxyifyOptions };
+  const options: ProxifyOptions<C> = { ...defaults, ...proxyifyOptions };
   return new Proxy(target, handler(new CallChain([]), options));
 }
 
-export function unproxify<T extends object>(proxied: T): T {
+export function unproxify<T extends object, C extends object>(
+  proxied: Proxified<T, C> | T
+): T {
   if (typeof proxied !== "object") return proxied;
   if (PROXIFY_INTERNAL_KEY in proxied) {
-    const internals = proxied[PROXIFY_INTERNAL_KEY] as ProxifyInternal;
+    const internals = proxied[PROXIFY_INTERNAL_KEY];
     return internals.rawValue;
   } else if (proxied instanceof Array) {
     return proxied.map(unproxify) as T;

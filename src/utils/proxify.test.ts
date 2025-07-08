@@ -29,6 +29,7 @@ test("ids", () => {
       ids[id] = rawFunc;
       return { value: rawFunc(...args), context: { id, parentIds } };
     },
+    context: { parentIds: [] as string[], id: uuid() },
   });
   proxyA.foo().a;
 
