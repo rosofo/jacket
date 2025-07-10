@@ -1,38 +1,48 @@
-import { v4 as uuid } from "uuid";
 import { test, expect } from "vitest";
-import { proxify } from "./proxify";
+import { getContext, proxify } from "./proxify";
+import * as fc from "fast-check";
+import { walk } from "walkjs";
 
-test("ids", () => {
-  class A {
-    foo() {
-      return { a: 1 };
-    }
-  }
-  const a = new A();
-  let result = {};
-  const ids = {};
-  const proxyA = proxify(a, {
-    valueCallback: (caller, context, rawValue) => {
-      const parent = context?.id;
-      const parentIds = [...(context?.parentIds || []), parent];
-      const id = uuid();
-      ids[id] = rawValue;
-      console.log(id, parentIds);
-      return { value: rawValue, context: { id, parentIds } };
+test("context can be immutably updated from valueCallback", () => {
+  const value = { a: { b: {} } };
+  const proxied = proxify(value, {
+    valueCallback: (caller, context, value) => {
+      return { value, context: { count: context.count + 1 } };
     },
-    functionExecCallback: (caller, context, args, rawFunc) => {
-      const parent = context?.id;
-      const parentIds = [...(context?.parentIds || []), parent];
-      const id = uuid();
-      console.log("call", id, parentIds);
-      result = context;
-      ids[id] = rawFunc;
-      return { value: rawFunc(...args), context: { id, parentIds } };
-    },
-    context: { parentIds: [] as string[], id: uuid() },
+    context: { count: 0 },
   });
-  proxyA.foo().a;
+  const b = proxied.a.b; // explicitly access b first
+  const a = proxied.a;
+  expect(getContext(a)).to.have.property("count").equals(1);
+  expect(getContext(b)).to.have.property("count").equals(2);
+});
 
-  console.log(ids);
-  expect(result).to.have.keys(["id", "parentIds"]);
+test("context inherits if not updated", () => {
+  fc.assert(
+    fc.property(fc.object({ maxDepth: 10 }), (value) => {
+      const proxied = proxify(value, {
+        context: { count: 0 },
+        valueCallback: (caller, context, value) => {
+          return { value, context: { count: context.count + 1 } };
+        },
+      });
+      walk(proxied, {
+        graphMode: "finiteTree",
+        onVisit: {
+          callback: (node) => {
+            if (
+              node.parent !== undefined &&
+              node.val !== null &&
+              typeof node.val === "object" &&
+              !(node.val instanceof Array)
+            ) {
+              const currCtx = getContext(node.val);
+              const prevCtx = getContext(node.parent?.val);
+              expect(currCtx.count - prevCtx.count).toEqual(1);
+            }
+          },
+        },
+      });
+    })
+  );
 });

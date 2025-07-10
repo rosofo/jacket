@@ -1,8 +1,16 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type PropsWithoutRef,
+  type RefObject,
+} from "react";
 import { useProgramStore } from "./hooks/program";
 import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import MonacoEditor, { type MonacoEditorProps } from "react-monaco-editor";
 import gpuTypes from "@webgpu/types/dist/index.d.ts?raw";
+import { Tabs } from "./components/Tabs";
+import type { editor } from "monaco-editor";
 
 const JS = `/**
  * @param {Navigator} navigator
@@ -103,71 +111,119 @@ export default function Editor({
     vertex_wgsl: VERTEX_SHADER,
     frag_wgsl: FRAG_SHADER,
   });
+
+  const editors = useRef<editor.IStandaloneCodeEditor[]>([]);
+
+  return (
+    <Tabs
+      className="editor"
+      onTabChange={() => {
+        editors.current.forEach((editor) => editor.layout());
+      }}
+    >
+      <div>
+        <AutoResizeEditor
+          onChange={(text) => {
+            texts.current.js = text;
+            evalProgramMaybe(
+              texts.current.js,
+              texts.current.vertex_wgsl,
+              texts.current.frag_wgsl
+            );
+          }}
+          editorDidMount={(editor) => {
+            editors.current.push(editor);
+          }}
+          defaultValue={JS}
+          language="javascript"
+          editorWillMount={(monaco) => {
+            monaco.languages.typescript.javascriptDefaults.addExtraLib(
+              gpuTypes
+            );
+          }}
+        />
+        <AutoResizeEditor
+          onChange={(text) => {
+            texts.current.vertex_wgsl = text;
+            evalProgramMaybe(
+              texts.current.js,
+              texts.current.vertex_wgsl,
+              texts.current.frag_wgsl
+            );
+          }}
+          editorDidMount={(editor) => {
+            editors.current.push(editor);
+          }}
+          language="wgsl"
+          defaultValue={VERTEX_SHADER}
+        />
+        <AutoResizeEditor
+          onChange={(text) => {
+            texts.current.frag_wgsl = text;
+            evalProgramMaybe(
+              texts.current.js,
+              texts.current.vertex_wgsl,
+              texts.current.frag_wgsl
+            );
+          }}
+          editorDidMount={(editor) => {
+            editors.current.push(editor);
+          }}
+          language="wgsl"
+          defaultValue={FRAG_SHADER}
+        />
+      </div>
+    </Tabs>
+  );
+}
+
+function useEditorResize(): [
+  RefObject<editor.IStandaloneCodeEditor | null>,
+  RefObject<HTMLDivElement | null>,
+] {
+  const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new ResizeObserver((entries, observer) => {
+      editorRef.current?.layout();
+    });
+    observer.observe(containerRef.current!);
+    return () => {
+      observer.disconnect();
+    };
+  });
+  return [editorRef, containerRef];
+}
+
+export function AutoResizeEditor({
+  editorDidMount,
+  options,
+  ...props
+}: Omit<MonacoEditorProps, "theme" | "className">) {
   const commonOptions: Partial<MonacoEditorProps["options"]> = {
-    automaticLayout: true,
     minimap: { enabled: false },
     lineDecorationsWidth: 0,
     lineNumbersMinChars: 2,
     showFoldingControls: "never",
   };
 
+  const [editorRef, containerRef] = useEditorResize();
   return (
-    <div className="editor ">
+    <Tabs.Tab ref={containerRef}>
       <MonacoEditor
         theme="vs-dark"
         className="monaco-inner"
-        onChange={(text) => {
-          texts.current.js = text;
-          evalProgramMaybe(
-            texts.current.js,
-            texts.current.vertex_wgsl,
-            texts.current.frag_wgsl
-          );
-        }}
-        defaultValue={JS}
-        language="javascript"
-        editorWillMount={(monaco) => {
-          monaco.languages.typescript.javascriptDefaults.addExtraLib(gpuTypes);
+        editorDidMount={(editor, monaco) => {
+          editorRef.current = editor;
+          if (editorDidMount !== undefined) editorDidMount(editor, monaco);
         }}
         options={{
-          language: "javascript",
           ...commonOptions,
+          ...options,
         }}
+        {...props}
       />
-      <MonacoEditor
-        theme="vs-dark"
-        className="monaco-inner"
-        onChange={(text) => {
-          texts.current.vertex_wgsl = text;
-          evalProgramMaybe(
-            texts.current.js,
-            texts.current.vertex_wgsl,
-            texts.current.frag_wgsl
-          );
-        }}
-        language="wgsl"
-        defaultValue={VERTEX_SHADER}
-        options={{
-          ...commonOptions,
-        }}
-      />
-      <MonacoEditor
-        theme="vs-dark"
-        className="monaco-inner"
-        onChange={(text) => {
-          texts.current.frag_wgsl = text;
-          evalProgramMaybe(
-            texts.current.js,
-            texts.current.vertex_wgsl,
-            texts.current.frag_wgsl
-          );
-        }}
-        language="wgsl"
-        defaultValue={FRAG_SHADER}
-        options={{
-          ...commonOptions,
-        }}
-      />
-    </div>
+    </Tabs.Tab>
   );
 }

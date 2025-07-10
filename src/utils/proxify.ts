@@ -11,15 +11,20 @@ export type BaseTypes =
   | "object"
   | "function";
 
-export type Proxified<T, C extends object = object> = T & ProxifyInternal<T, C>;
+export type Proxified<T extends object, C extends object = object> = T &
+  ProxifyInternal<T, C>;
 
-export interface JsProxyProperties<T, K extends keyof T, C extends object> {
+export interface JsProxyProperties<
+  T extends object,
+  K extends keyof T,
+  C extends object,
+> {
   value: T[K];
   receiver: Proxified<T, C>;
   target: T;
 }
 
-export interface ProxifyInternal<T, C> {
+export interface ProxifyInternal<T extends object, C extends object> {
   __proxify_internal: {
     rawValue: T;
     valueCallbackResult: unknown;
@@ -202,18 +207,26 @@ export function proxify<T extends object, C extends object = object>(
   return new Proxy(target, handler(new CallChain([]), options));
 }
 
-export function unproxify<T extends object, C extends object>(
-  proxied: Proxified<T, C> | T
+export function unproxify<T, C extends object = object>(
+  proxied: T extends object ? Proxified<T, C> | Proxified<T, C>[] | T : T
 ): T {
-  if (typeof proxied !== "object") return proxied;
+  if (proxied === null || proxied === undefined || typeof proxied !== "object")
+    return proxied as T;
   if (PROXIFY_INTERNAL_KEY in proxied) {
-    const internals = proxied[PROXIFY_INTERNAL_KEY];
+    const internals = proxied[PROXIFY_INTERNAL_KEY] as ProxifyInternal<T, C>;
     return internals.rawValue;
-  } else if (proxied instanceof Array) {
+  }
+  if (proxied instanceof Array) {
     return proxied.map(unproxify) as T;
   } else {
     return Object.fromEntries(
       Object.entries(proxied).map(([key, val]) => [key, unproxify(val)])
     ) as T;
   }
+}
+
+export function getContext<T extends object, C extends object>(
+  proxied: ProxifyInternal<T, C>
+): C {
+  return proxied.__proxify_internal.context;
 }

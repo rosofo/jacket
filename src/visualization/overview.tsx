@@ -12,7 +12,7 @@ import {
   type ProgramItem,
 } from "../hooks/program";
 import { Type, type Static } from "@sinclair/typebox";
-import { find, groupBy, includes, map, pipe } from "rambda";
+import { find, groupBy, includes, indexBy, map, pipe } from "rambda";
 import Dagre from "@dagrejs/dagre";
 import { useEffect, useMemo } from "react";
 
@@ -56,61 +56,26 @@ const AttributesSchema = Type.Recursive((This) =>
 );
 type AttributesSchema = Static<typeof AttributesSchema>;
 
-function buildData(program: Program) {
-  const nodes: Node[] = program.setup.map((item, i) => ({
+function buildData(program: Program): [Node[], Edge[]] {
+  const idMap = pipe(program, indexBy("id"));
+  const nodes: Node[] = program.map((node) => ({
+    id: node.id,
+    data: { label: node.type },
     position: { x: 0, y: 0 },
-    width: 60,
-    id: `setup-${i}`,
-    data: { label: item.type },
   }));
-
-  nodes.push(
-    ...pipe(
-      program.buffers,
-      map((buffer, i) => ({
-        position: { x: 0, y: 0 },
-        id: `buffer-${i}`,
-        data: { label: buffer.type },
-      }))
+  const edges: Edge[] = program
+    .filter(
+      (node) =>
+        node.parentId !== undefined && idMap[node.parentId] !== undefined
     )
-  );
-
-  nodes.push(
-    ...pipe(
-      program.pass,
-      map((pass, i) => ({
-        position: { x: 0, y: 0 },
-        id: `pass-${i}`,
-        data: { label: pass.type },
-        className: "node active",
-      }))
-    )
-  );
-
-  const device = pipe(
-    nodes,
-    find(({ data: { label } }) => label === "device")
-  );
-  const edges: Edge[] = [];
-  if (device === undefined) {
-    return [[], []];
-  }
-  edges.push(
-    ...nodes
-      .filter((n) => ["buffer", "encoder"].includes(n.data.label))
-      .map((item) => ({
-        id: `${item.id}-device`,
-        source: device!.id,
-        target: item.id,
-      }))
-  );
-  const adapter = pipe(
-    nodes,
-    find(({ data: { label } }) => label === "adapter")
-  );
-  if (device !== undefined && adapter !== undefined) {
-    edges.push({ id: "device-adapter", source: adapter.id, target: device.id });
-  }
+    .map((node) => {
+      const parent = idMap[node.parentId!];
+      return {
+        source: parent.id,
+        target: node.id,
+        id: `${parent.id}-${node.id}`,
+      };
+    });
   return [nodes, edges];
 }
 
