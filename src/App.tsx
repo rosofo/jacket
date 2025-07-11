@@ -11,6 +11,7 @@ import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import Overview from "./visualization/overview";
 import { ReactFlowProvider } from "@xyflow/react";
+import Files from "./components/Files";
 
 const DEFAULT = "foo";
 
@@ -25,9 +26,12 @@ function App() {
           <Overview />
         </ReactFlowProvider>
       </div>
-      <div className="box small far subgrid">
-        <Editor defaultText={DEFAULT} />
+      <div className="box small far">
+        <Files />
       </div>
+      {/* <div className="box small far subgrid">
+        <Editor defaultText={DEFAULT} />
+      </div> */}
     </div>
   );
 }

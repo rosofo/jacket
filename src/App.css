@@ -16,6 +16,7 @@
 
   --color-light: lab(74.42% 0 -0.01);
   --color-dark: lab(9.26% 0 0);
+  --color-green: oklab(60% -50% 50%);
   --contrast: 2.5;
 
   background-color: var(--color-dark);
@@ -263,5 +264,72 @@ footer {
   .tab[data-open="false"] {
     display: none;
     /* flex-basis: 0; */
+  }
+}
+
+button:disabled {
+  border-color: hsl(from var(--color-dark) h s calc(l + -3 * var(--contrast)));
+
+  &:hover {
+    outline: none;
+    cursor: not-allowed;
+  }
+}
+
+h2 {
+  font-size: var(--s0);
+}
+
+.fade {
+  transition: all;
+  transition-duration: 800ms;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0turn) translateY(0%);
+  }
+  5% {
+    transform: rotate(0turn) translateY(10%);
+  }
+  10% {
+    transform: rotate(0turn) translateY(0%);
+  }
+  15% {
+    transform: rotate(0turn) translateY(10%);
+  }
+  20% {
+    transform: rotate(0turn) translateY(0%);
+  }
+  50% {
+    transform: rotate(0turn) translateY(0%);
+  }
+  100% {
+    transform: rotate(1turn) translateY(0%);
+  }
+}
+.icon.spin {
+  animation-name: spin;
+  animation-duration: 0.8s;
+  animation-iteration-count: infinite;
+}
+
+.icon[data-status="loaded"] {
+  color: var(--color-green);
+}
+.icon[data-status="refetching"] {
+  --color: oklab(from var(--color-green) calc(l + 20%) a calc(b + 0.3));
+  color: var(--color);
+
+  * {
+    transition: all;
+    transition-duration: 200ms;
+    stroke-width: 30%;
+  }
+}
+.icon {
+  * {
+    transition: all;
+    transition-duration: 300ms;
   }
 }
