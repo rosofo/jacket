@@ -10,6 +10,7 @@ import { useFiles } from "../hooks/files";
 import type { IconType } from "react-icons/lib";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { useProgramStore } from "../hooks/program";
+import { filterObject, pipe } from "rambda";
 const DEFAULT_VERTEX = `@vertex
 fn main(
   @builtin(vertex_index) VertexIndex : u32
@@ -27,19 +28,95 @@ fn main() -> @location(0) vec4f {
   return vec4(1.0, 0.0, 0.0, 1.0);
 }`;
 
+const DEFAULT_JS = `/**
+ * @param {Navigator} navigator
+ * @param {GPUCanvasContext} context
+ * @param {Record<string, string>} files
+ */
+export async function program(navigator, context, files) {
+    const adapter = await navigator.gpu?.requestAdapter({
+        featureLevel: 'compatibility',
+    });
+    const device = await adapter?.requestDevice();
+
+    const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+
+    context.configure({ 
+      device,
+      format: presentationFormat,
+    });
+
+    const pipeline = device.createRenderPipeline({
+      layout: 'auto',
+      vertex: {
+        module: device.createShaderModule({
+          code: files['vertex.wgsl'],
+        }),
+      },
+      fragment: {
+        module: device.createShaderModule({
+          code: files['fragment.wgsl'],
+        }),
+        targets: [
+          {
+            format: presentationFormat,
+          },
+        ],
+      },
+      primitive: {
+        topology: 'triangle-list',
+      },
+    });
+    return () => {
+       const commandEncoder = device.createCommandEncoder();
+  const textureView = context.getCurrentTexture().createView();
+
+  const renderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: textureView,
+        clearValue: [0, 0, 0, 0], // Clear to transparent
+        loadOp: 'clear',
+        storeOp: 'store',
+      },
+    ],
+  };
+
+  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+  passEncoder.setPipeline(pipeline);
+  passEncoder.draw(3);
+  passEncoder.end();
+
+  device.queue.submit([commandEncoder.finish()]);
+    }
+}`;
+
 export default function Files() {
   const { files, choose, create, path, status } = useFiles();
-  // const evalProgram = useProgramStore(state => state.evalProgram)
-  // useEffect(() => {}, [files['vertex.wgsl']])
+  const missingJs = !("main.js" in files);
+  const evalProgram = useProgramStore((state) => state.evalProgram);
+  useEffect(() => {
+    const js = files["main.js"];
+    if (js !== undefined) {
+      const rest = pipe(
+        files,
+        filterObject((v, k) => k !== "main.js")
+      );
+      evalProgram(js, rest);
+    }
+  }, [files, evalProgram]);
 
   let statusEl: ReactNode;
   switch (status) {
     case "no-access":
       statusEl = (
-        <GiCrossedSwords
-          data-status="no-access"
-          className="icon double-flash"
-        />
+        <div>
+          <GiCrossedSwords
+            data-status="no-access"
+            className="icon double-flash"
+          />
+          <div className="dot"></div>
+        </div>
       );
       break;
     case "loaded":
@@ -72,6 +149,7 @@ export default function Files() {
               {status === null ? "Choose Directory" : `path: ${path}`}
             </button>
             {statusEl}
+            {missingJs && <div>missing: main.js</div>}
           </div>
         </div>
         <div className="stack">
@@ -79,15 +157,21 @@ export default function Files() {
           <div className="cluster">
             <button
               disabled={!path}
+              onClick={() => create("main.js", DEFAULT_JS)}
+            >
+              main.js
+            </button>
+            <button
+              disabled={!path}
               onClick={() => create("vertex.wgsl", DEFAULT_VERTEX)}
             >
-              Vertex
+              vertex.wgsl
             </button>
             <button
               disabled={!path}
               onClick={() => create("fragment.wgsl", DEFAULT_FRAGMENT)}
             >
-              Fragment
+              fragment.wgsl
             </button>
           </div>
         </div>

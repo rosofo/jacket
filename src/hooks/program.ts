@@ -27,11 +27,7 @@ export type Program = ProgramItem[];
 export type ProgramStore = {
   program: Program;
   renderFunc: null | (() => void);
-  evalProgram: (
-    js: string,
-    vertex_wgsl: string,
-    frag_wgsl: string
-  ) => Promise<void>;
+  evalProgram: (js: string, files: Record<string, string>) => Promise<void>;
   canvas: HTMLCanvasElement | null;
   context: GPUCanvasContext | null;
   setCanvas: (canvas: HTMLCanvasElement) => void;
@@ -40,7 +36,7 @@ export type ProgramStore = {
 export const useProgramStore = create<ProgramStore>((set, get) => ({
   program: [],
   renderFunc: null,
-  evalProgram: async (js: string, vertex_wgsl: string, frag_wgsl: string) => {
+  evalProgram: async (js: string, files: Record<string, string>) => {
     set({ program: [] });
     const blob = new Blob([js], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
@@ -113,12 +109,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     };
     const navProxy = proxify(navigator, proxifyOpts);
     const contextProxy = proxify(state.context!, proxifyOpts);
-    const renderFunc = await module.program(
-      navProxy,
-      contextProxy,
-      vertex_wgsl,
-      frag_wgsl
-    );
+    const renderFunc = await module.program(navProxy, contextProxy, files);
 
     isSetup = false;
     if (typeof renderFunc === "function") {

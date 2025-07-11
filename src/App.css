@@ -17,6 +17,7 @@
   --color-light: lab(74.42% 0 -0.01);
   --color-dark: lab(9.26% 0 0);
   --color-green: oklab(60% -50% 50%);
+  --color-red: oklab(51.902% 0.18588 0.10399);
   --contrast: 2.5;
 
   background-color: var(--color-dark);
@@ -314,6 +315,82 @@ h2 {
   animation-iteration-count: infinite;
 }
 
+@property --t {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --x {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --y {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@keyframes double-flash {
+  0% {
+    --t: 0;
+  }
+  1% {
+    --t: 1;
+    --x: 1;
+    --y: 1;
+  }
+  10% {
+    --t: 1;
+    --x: 0;
+    --y: 0;
+  }
+  15% {
+    --t: 0;
+    --x: 0;
+    --y: 0;
+  }
+  20% {
+    --t: 1;
+    --x: 0;
+    --y: 1;
+  }
+  30% {
+    --t: 1;
+    --x: 1;
+    --y: 0;
+  }
+  35% {
+    --t: 0;
+  }
+  100% {
+    --t: 0;
+  }
+}
+div:has(> .icon.double-flash) {
+  position: relative;
+
+  .dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    filter: blur(calc(2px + var(--t) * 1px));
+    opacity: calc((2 + 1) / (1 + 2 * var(--t)));
+    transform: translate(
+      calc(var(--x) * 10px - 5px),
+      calc(var(--y) * 10px - 5px)
+    );
+    transform-origin: center;
+    background-color: white;
+    width: 0.1rem;
+    height: 0.1rem;
+    border-radius: 100%;
+    animation-name: double-flash;
+    animation-duration: 0.8s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+  }
+}
 .icon[data-status="loaded"] {
   color: var(--color-green);
 }
@@ -332,4 +409,7 @@ h2 {
     transition: all;
     transition-duration: 300ms;
   }
+}
+.icon[data-status="no-access"] {
+  color: var(--color-red);
 }
