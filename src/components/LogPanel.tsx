@@ -7,20 +7,15 @@ import {
 } from "@logtape/logtape";
 import { parse, ansicolor } from "ansicolor";
 
-const logger = getLogger(["learn-a-webgpu", "LogPanel"]);
-
 export default function LogPanel() {
   const records = useLogStore((state) => state.records);
   const formatter = useRef(ansiColorFormatter);
-  useEffect(() => {
-    logger.info("learn-a-webgpu initialized");
-  }, []);
   const formatted = useMemo(() => {
     return records.map((record) => {
       const parsed = parse(formatter.current(record));
       return (
         <div key={record.timestamp}>
-          {parsed.spans.map((span) => {
+          {parsed.spans.map((span, i) => {
             let color = undefined;
             let backgroundColor = undefined;
 
@@ -34,6 +29,7 @@ export default function LogPanel() {
             }
             return (
               <span
+                key={i}
                 style={{
                   backgroundColor,
                   color,

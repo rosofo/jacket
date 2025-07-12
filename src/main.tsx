@@ -12,9 +12,7 @@ function storeSink(record: LogRecord) {
 }
 await configure({
   sinks: { store: storeSink },
-  loggers: [
-    { category: "learn-a-webgpu", lowestLevel: "debug", sinks: ["store"] },
-  ],
+  loggers: [{ category: "jacket", lowestLevel: "debug", sinks: ["store"] }],
 });
 
 createRoot(document.getElementById("root")!).render(

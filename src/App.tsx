@@ -13,10 +13,14 @@ import Overview from "./visualization/overview";
 import { ReactFlowProvider } from "@xyflow/react";
 import Files from "./components/Files";
 import LogPanel from "./components/LogPanel";
+import { getLogger } from "@logtape/logtape";
 
-const DEFAULT = "foo";
+const logger = getLogger(["jacket"]);
 
 function App() {
+  useEffect(() => {
+    logger.info("jacket and shades, so cool.");
+  }, []);
   return (
     <div className="layout">
       <div className="box">
