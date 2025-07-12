@@ -4,6 +4,19 @@ import "./index.css";
 import App from "./App.tsx";
 import "./userWorker";
 
+import { configure, type LogRecord } from "@logtape/logtape";
+import { useLogStore } from "./hooks/log.ts";
+
+function storeSink(record: LogRecord) {
+  useLogStore.getState().push(record);
+}
+await configure({
+  sinks: { store: storeSink },
+  loggers: [
+    { category: "learn-a-webgpu", lowestLevel: "debug", sinks: ["store"] },
+  ],
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

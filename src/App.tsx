@@ -12,6 +12,7 @@ import { Value } from "@sinclair/typebox/value";
 import Overview from "./visualization/overview";
 import { ReactFlowProvider } from "@xyflow/react";
 import Files from "./components/Files";
+import LogPanel from "./components/LogPanel";
 
 const DEFAULT = "foo";
 
@@ -26,12 +27,10 @@ function App() {
           <Overview />
         </ReactFlowProvider>
       </div>
-      <div className="box small far">
+      <div className="box small far scroll">
         <Files />
       </div>
-      {/* <div className="box small far subgrid">
-        <Editor defaultText={DEFAULT} />
-      </div> */}
+      <LogPanel />
     </div>
   );
 }
