@@ -22,34 +22,51 @@ test("context exists on outermost proxified value", () => {
     .to.have.property("hi")
     .equal("hello");
 });
+test("context setting via property access is idempotent ", () => {
+  const p = proxify(
+    { a: {} },
+    {
+      context: { i: 0 },
+      valueCallback: (caller, context, rawValue) => {
+        return { context: context.i + 1, value: rawValue };
+      },
+    }
+  );
 
-test("context is passed to properties", () => {
-  type Tree = { a: Tree; b: Tree } | {};
-  const { tree } = fc.letrec<{ tree: Tree; branch: Tree; leaf: {} }>((tie) => ({
-    tree: fc.oneof({ depthSize: "small" }, tie("branch"), tie("leaf")),
-    branch: fc.record({ a: tie("tree"), b: tie("tree") }, { requiredKeys: [] }),
-    leaf: fc.constant({}),
-  }));
+  expect(getContext(p.a)).to.equal(1);
+  expect(getContext(p.a)).to.equal(1);
+});
+
+test("context is passed to arbitrarily deep properties", () => {
+  type Tree = { a: Tree } | {};
+  const { tree: nested } = fc.letrec<{ tree: Tree; branch: Tree; leaf: {} }>(
+    (tie) => ({
+      tree: fc.oneof({ depthSize: "small" }, tie("branch"), tie("leaf")),
+      branch: fc.record({ a: tie("tree") }, { requiredKeys: [] }),
+      leaf: fc.constant({}),
+    })
+  );
 
   fc.assert(
-    fc.property(tree, (tree) => {
-      const proxied = proxify(tree, {
+    fc.property(nested, (nested) => {
+      let proxied = proxify(nested, {
         context: { i: 0 },
         valueCallback: (caller, context, rawValue) => {
-          return { value: rawValue, context: { i: context.i + 1 } };
+          if (context.i !== null)
+            return { value: rawValue, context: { i: context.i + 1 } };
         },
       });
 
-      let stack = [[null, proxied] as const];
-      while (stack.length > 0) {
-        const [prevI, node] = stack.pop();
-        if (node === undefined) continue;
-        const i = getContext(node).i;
-        if (prevI !== null) {
-          expect(i).to.equal(prevI + 1);
+      let last = null;
+      while (proxied !== undefined) {
+        const i = getContext(proxied).i;
+
+        if (last !== null) {
+          expect(i).to.equal(last + 1);
         }
-        if (node.a !== undefined) stack.push([i, node.a]);
-        if (node.b !== undefined) stack.push([i, node.b]);
+
+        last = i;
+        proxied = proxied.a;
       }
     }),
     { verbose: true, includeErrorInReport: true }
