@@ -1,7 +1,6 @@
 import { test, expect } from "vitest";
-import { getContext, proxify, unproxify } from "./proxify";
+import { getContext, proxify } from "./proxify";
 import * as fc from "fast-check";
-import { Break, deepCopy, SetVisitationRegister, walk } from "walkjs";
 
 test("context can be immutably updated from valueCallback", () => {
   const value = { a: { b: {} } };

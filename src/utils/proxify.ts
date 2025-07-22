@@ -1,8 +1,6 @@
 // Note: Will probs move to being a library at some point
 // Note: Currently a WIP
 
-import { deepCopy } from "walkjs";
-
 export type BaseTypes =
   | "string"
   | "number"

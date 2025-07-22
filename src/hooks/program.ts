@@ -4,23 +4,9 @@ import { useEffect } from "react";
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 
-type Value =
-  | GPUBuffer
-  | GPUDevice
-  | GPUAdapter
-  | GPURenderPassEncoder
-  | GPURenderPipeline
-  | GPUCommandEncoder
-  | GPUPipelineLayout
-  | GPUBindGroup
-  | GPUBindGroupLayout;
-type ValueTypeName<T extends { __brand: string }> =
-  T["__brand"] extends `GPU${infer Name}` ? Name : never;
 export type ItemMeta = { parentId?: string; id: string; ephemeral?: boolean };
-export type _Item<V = Value> = V extends Value
-  ? { type: ValueTypeName<V>; value: V }
-  : never;
-export type Item = _Item;
+export type Item = { value: unknown };
+
 export type ProgramItem = Item & ItemMeta;
 export type Program = ProgramItem[];
 
@@ -49,32 +35,13 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
 
     let isSetup = true;
     const addMaybe = (
-      result: object,
+      value: unknown,
       { id, parentId }: { id: string; parentId?: string }
     ) => {
       set(({ program }) => ({
         program: produce((program: Program) => {
           const ephemeral = !isSetup;
-          if (result instanceof GPUBuffer) {
-            program.push({ type: "Buffer", value: result, ephemeral, id });
-          } else if (result instanceof GPUAdapter) {
-            program.push({ type: "Adapter", value: result, id });
-          } else if (result instanceof GPUDevice) {
-            program.push({
-              type: "Device",
-              value: result,
-              id,
-              parentId,
-            });
-          } else if (result instanceof GPURenderPassEncoder) {
-            program.push({
-              type: "RenderPassEncoder",
-              value: result,
-              id,
-              ephemeral,
-              parentId,
-            });
-          }
+          program.push({ ephemeral, id, parentId, value });
         })(program),
       }));
     };
@@ -87,22 +54,18 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     const proxifyOpts: Partial<
       ProxifyOptions<{ id: string; parentId?: string }>
     > = {
-      functionExecCallback: (caller, context, args, rawFunc) => {
+      functionExecCallback: (_caller, context, args, rawFunc) => {
         const unproxifiedArgs = args.map(unproxify);
         const result = rawFunc(...unproxifiedArgs);
 
-        if (result instanceof Promise) {
-          result.then((result) => addMaybe(result, context));
-        } else if (result !== null && typeof result === "object") {
-          addMaybe(result, context);
-        }
-        return { value: result };
+        return { value: result, context: { id: uuid(), parentId: context.id } };
       },
-      valueCallback: (caller, context, rawValue) => {
-        if (typeof rawValue === "function") return;
+      valueCallback: (_caller, context, rawValue) => {
+        const newCtx = { id: uuid(), parentId: context.id };
+        addMaybe(rawValue, newCtx);
         return {
           value: rawValue,
-          context: { id: uuid(), parentId: context.id },
+          context: newCtx,
         };
       },
       context: { id: uuid() },
