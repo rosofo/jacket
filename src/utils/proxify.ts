@@ -1,6 +1,8 @@
 // Note: Will probs move to being a library at some point
 // Note: Currently a WIP
 
+import { deepCopy } from "walkjs";
+
 export type BaseTypes =
   | "string"
   | "number"
@@ -204,6 +206,9 @@ export function proxify<T extends object, C extends object = object>(
     context: proxyifyOptions?.context || ({} as C),
   };
   const options: ProxifyOptions<C> = { ...defaults, ...proxyifyOptions };
+  target = Object.assign(target, {
+    [PROXIFY_INTERNAL_KEY]: { context: proxyifyOptions.context },
+  });
   return new Proxy(target, handler(new CallChain([]), options));
 }
 

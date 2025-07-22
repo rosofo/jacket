@@ -1,7 +1,7 @@
 import { test, expect } from "vitest";
-import { getContext, proxify } from "./proxify";
+import { getContext, proxify, unproxify } from "./proxify";
 import * as fc from "fast-check";
-import { walk } from "walkjs";
+import { Break, deepCopy, SetVisitationRegister, walk } from "walkjs";
 
 test("context can be immutably updated from valueCallback", () => {
   const value = { a: { b: {} } };
@@ -17,32 +17,41 @@ test("context can be immutably updated from valueCallback", () => {
   expect(getContext(b)).to.have.property("count").equals(2);
 });
 
-test("context inherits if not updated", () => {
+test("context exists on outermost proxified value", () => {
+  expect(getContext(proxify({ a: 1 }, { context: { hi: "hello" } })))
+    .to.have.property("hi")
+    .equal("hello");
+});
+
+test("context is passed to properties", () => {
+  type Tree = { a: Tree; b: Tree } | {};
+  const { tree } = fc.letrec<{ tree: Tree; branch: Tree; leaf: {} }>((tie) => ({
+    tree: fc.oneof({ depthSize: "small" }, tie("branch"), tie("leaf")),
+    branch: fc.record({ a: tie("tree"), b: tie("tree") }, { requiredKeys: [] }),
+    leaf: fc.constant({}),
+  }));
+
   fc.assert(
-    fc.property(fc.object({ maxDepth: 10 }), (value) => {
-      const proxied = proxify(value, {
-        context: { count: 0 },
-        valueCallback: (caller, context, value) => {
-          return { value, context: { count: context.count + 1 } };
+    fc.property(tree, (tree) => {
+      const proxied = proxify(tree, {
+        context: { i: 0 },
+        valueCallback: (caller, context, rawValue) => {
+          return { value: rawValue, context: { i: context.i + 1 } };
         },
       });
-      walk(proxied, {
-        graphMode: "finiteTree",
-        onVisit: {
-          callback: (node) => {
-            if (
-              node.parent !== undefined &&
-              node.val !== null &&
-              typeof node.val === "object" &&
-              !(node.val instanceof Array)
-            ) {
-              const currCtx = getContext(node.val);
-              const prevCtx = getContext(node.parent?.val);
-              expect(currCtx.count - prevCtx.count).toEqual(1);
-            }
-          },
-        },
-      });
-    })
+
+      let stack = [[null, proxied] as const];
+      while (stack.length > 0) {
+        const [prevI, node] = stack.pop();
+        if (node === undefined) continue;
+        const i = getContext(node).i;
+        if (prevI !== null) {
+          expect(i).to.equal(prevI + 1);
+        }
+        if (node.a !== undefined) stack.push([i, node.a]);
+        if (node.b !== undefined) stack.push([i, node.b]);
+      }
+    }),
+    { verbose: true, includeErrorInReport: true }
   );
 });
