@@ -103,11 +103,12 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
         functionExeccallbackReturn === undefined
           ? actualFunction(...actualArgs)
           : functionExeccallbackReturn.value;
-      return proxifyValue(
+      const p = proxifyValue(
         { value: result, receiver, target },
         currentCaller,
         options
       );
+      return Object.assign(p, internalFields);
     };
     return Object.assign(f, internalFields);
   } else if (normalisedValue instanceof Object) {
@@ -206,7 +207,6 @@ export function proxify<T extends object, C extends object = object>(
     context: proxyifyOptions?.context || ({} as C),
   };
   const options: ProxifyOptions<C> = { ...defaults, ...proxyifyOptions };
-  target = structuredClone(target);
   target = Object.assign(target, {
     [PROXIFY_INTERNAL_KEY]: { context: proxyifyOptions.context },
   });

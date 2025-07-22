@@ -72,3 +72,27 @@ test("context is passed to arbitrarily deep properties", () => {
     { verbose: true, includeErrorInReport: true }
   );
 });
+
+test("context is passed through method calls", () => {
+  const p = proxify({ f: () => ({ a: {} }) }, { context: { hi: "hello" } });
+  expect(getContext(p)).to.have.property("hi").equals("hello");
+  expect(getContext(p.f)).to.have.property("hi").equals("hello");
+  expect(getContext(p.f())).to.have.property("hi").equals("hello");
+  expect(getContext(p.f().a)).to.have.property("hi").equals("hello");
+});
+
+test("context can be modified on method calls", () => {
+  const p = proxify(
+    { f: () => ({ a: {} }) },
+    {
+      context: { i: 0 },
+      functionExecCallback: (caller, context, args, func) => {
+        return { value: func(...args), context: { i: context.i + 1 } };
+      },
+    }
+  );
+  expect(getContext(p)).to.have.property("i").equals(0);
+  expect(getContext(p.f)).to.have.property("i").equals(0);
+  expect(getContext(p.f())).to.have.property("i").equals(1);
+  expect(getContext(p.f().a)).to.have.property("i").equals(1);
+});
