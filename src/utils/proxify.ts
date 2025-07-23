@@ -1,6 +1,10 @@
 // Note: Will probs move to being a library at some point
 // Note: Currently a WIP
 
+import { getLogger } from "@logtape/logtape";
+
+const logger = getLogger("proxify");
+
 export type BaseTypes =
   | "string"
   | "number"
@@ -39,8 +43,8 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   currentCaller: CallChain,
   options: ProxifyOptions<C>
 ) {
-  const prevContext =
-    receiver[PROXIFY_INTERNAL_KEY]?.context || options.context;
+  const inheritedContext = receiver[PROXIFY_INTERNAL_KEY]?.context;
+  const prevContext = inheritedContext || options.context;
   const valueCallbackReturn = options.valueCallback(
     currentCaller,
     prevContext,
@@ -84,8 +88,10 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
     // Do not make this an arrow function, it wont work for *this* reasons :p
     const f = function (...actualArgs: unknown[]) {
       const t = this === receiver ? target : this;
-      const actualFunction = (...args: unknown[]) =>
-        normalisedValue.apply(t, args);
+      const actualFunction = (...args: unknown[]) => {
+        const result = normalisedValue.apply(t, args);
+        return result;
+      };
       currentCaller = currentCaller.extend("executed");
       const functionExeccallbackReturn = options.functionExecCallback(
         currentCaller,

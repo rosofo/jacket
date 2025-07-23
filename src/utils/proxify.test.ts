@@ -95,3 +95,18 @@ test("context can be modified on method calls", () => {
   expect(getContext(p.f())).to.have.property("i").equals(1);
   expect(getContext(p.f().a)).to.have.property("i").equals(1);
 });
+
+test("context is passed through promises", async () => {
+  const p = proxify(async () => ({}), {
+    context: { i: 0 },
+    valueCallback: (caller, context, value) => {
+      return { context: { i: context.i + 1 } };
+    },
+  });
+
+  expect(getContext(await p()))
+    .to.have.property("i")
+    .equals(2);
+  expect(getContext(p())).to.have.property("i").equals(1);
+  expect(getContext(p)).to.have.property("i").equals(0);
+});
