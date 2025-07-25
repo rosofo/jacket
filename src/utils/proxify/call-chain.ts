@@ -1,3 +1,7 @@
+import { getLogger, type Logger } from "@logtape/logtape";
+
+const logger = getLogger(["proxify", "call-chain"]);
+
 export type BaseTypes =
   | "string"
   | "number"
@@ -19,9 +23,13 @@ export type Caller =
 export class CallChain {
   rootContext?: unknown;
   chain: Caller[];
+  ctx: Logger;
   constructor(chain: Caller[], rootContext: unknown) {
     this.chain = chain;
     this.rootContext = rootContext;
+
+    this.ctx = logger.with({ rootContext, chain: this.toCallChainString() });
+    this.ctx.trace("new CallChain {chain}");
   }
   extend(caller: Caller): CallChain {
     return new CallChain([...this.chain, caller], this.rootContext);
@@ -41,7 +49,9 @@ export class CallChain {
       .reverse()
       .find((caller) => caller.context !== undefined);
     const context = (last as { context: unknown })?.context;
-    return context || this.rootContext;
+    const result = context || this.rootContext;
+    this.ctx.debug`Getting context: ${result}`;
+    return result;
   }
 }
 export function callerString(caller: Caller) {

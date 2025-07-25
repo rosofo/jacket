@@ -3,6 +3,9 @@ import { proxify, unproxify, type ProxifyOptions } from "../utils/proxify";
 import { useEffect } from "react";
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
+import { getLogger } from "@logtape/logtape";
+
+const logger = getLogger(["jacket", "program"]);
 
 export type ItemMeta = { parentId?: string; id: string; ephemeral?: boolean };
 export type Item = { value: unknown };
@@ -54,13 +57,13 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     const proxifyOpts: Partial<
       ProxifyOptions<{ id: string; parentId?: string }>
     > = {
-      functionExecCallback: (_caller, context, args, rawFunc) => {
-        const unproxifiedArgs = args.map(unproxify);
-        const result = rawFunc(...unproxifiedArgs);
-
-        return { value: result, context: { id: uuid(), parentId: context.id } };
+      functionExecCallback: (caller, args, func) => {
+        return { value: func(...args.map(unproxify)) };
       },
-      valueCallback: (_caller, context, rawValue) => {
+      valueCallback: (caller, rawValue) => {
+        if (typeof rawValue === "function" || rawValue instanceof Promise)
+          return;
+        const context = caller.getContext();
         const newCtx = { id: uuid(), parentId: context.id };
         addMaybe(rawValue, newCtx);
         return {

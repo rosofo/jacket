@@ -1,6 +1,17 @@
 import { test, expect } from "vitest";
 import { getContext, proxify } from ".";
 import * as fc from "fast-check";
+import {
+  configure,
+  getAnsiColorFormatter,
+  getConsoleSink,
+  getJsonLinesFormatter,
+} from "@logtape/logtape";
+
+configure({
+  loggers: [{ category: "proxify", sinks: ["console"], lowestLevel: "trace" }],
+  sinks: { console: getConsoleSink() },
+});
 
 test("context can be immutably updated from valueCallback", () => {
   const value = { a: { b: {} } };
