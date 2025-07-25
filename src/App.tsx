@@ -14,6 +14,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import Files from "./components/Files";
 import LogPanel from "./components/LogPanel";
 import { getLogger } from "@logtape/logtape";
+import usePulsar from "./hooks/pulsar";
 
 const logger = getLogger(["jacket"]);
 

@@ -1,16 +1,19 @@
 import {
   Background,
+  Handle,
+  Position,
   ReactFlow,
   useReactFlow,
   type Edge,
   type Node,
+  type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useProgramStore, type Program } from "../hooks/program";
-import { Type, type Static } from "@sinclair/typebox";
 import Dagre from "@dagrejs/dagre";
 import { useEffect, useMemo } from "react";
 import { pruneGraph, toGraph } from "./graph";
+import usePulsar from "../hooks/pulsar";
 
 export default function Overview() {
   const program = useProgramStore((state) => state.program);
@@ -18,7 +21,6 @@ export default function Overview() {
 
   const [nodes, edges] = useMemo(() => {
     const [nodes, edges] = buildData(program);
-    console.log(nodes);
     const layouted = getLayoutedElements(nodes, edges, { direction: "TB" });
 
     return [[...layouted.nodes], [...layouted.edges]];
@@ -26,8 +28,14 @@ export default function Overview() {
   useEffect(() => {
     fitView();
   }, [program, fitView]);
+
   return (
-    <ReactFlow nodes={nodes} edges={edges} colorMode="dark">
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={{ default: DefaultNode }}
+      colorMode="dark"
+    >
       <Background />
     </ReactFlow>
   );
@@ -36,14 +44,18 @@ export default function Overview() {
 function buildData(program: Program): [Node[], Edge[]] {
   const graph = toGraph(program);
   pruneGraph(graph);
-  const nodes: Node[] = Array.from(graph.nodeEntries()).map(
+  const nodes: JacketNode[] = Array.from(graph.nodeEntries()).map(
     ({ node, attributes }) => ({
       id: node,
       data: {
         label:
-          attributes.value?.constructor?.name || attributes.value?.toString(),
+          attributes.value?.constructor?.name ||
+          attributes.value?.toString() ||
+          `${attributes.value}`,
+        ephemeral: attributes.ephemeral,
       },
       position: { x: 0, y: 0 },
+      type: "default",
     })
   );
   const edges: Edge[] = Array.from(graph.edgeEntries()).map((edge) => {
@@ -84,3 +96,18 @@ const getLayoutedElements = (nodes, edges, options) => {
     edges,
   };
 };
+
+type JacketNode = Node<{ label: string; ephemeral?: boolean }>;
+function DefaultNode(props: NodeProps<JacketNode>) {
+  const x = props.positionAbsoluteX;
+  const y = props.positionAbsoluteY;
+  const pos = useReactFlow().flowToScreenPosition({ x, y });
+  const pulsar = usePulsar(pos.x, pos.y);
+  return (
+    <div className="box small">
+      {props.data.label}
+      <Handle position={Position.Top} type="target" />
+      <Handle position={Position.Bottom} type="source" />
+    </div>
+  );
+}

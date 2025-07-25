@@ -40,5 +40,5 @@ export function pruneGraph(graph: Graph) {
   }
 }
 function shouldPrune(value: unknown) {
-  return typeof value === "function";
+  return value === undefined || typeof value === "function";
 }

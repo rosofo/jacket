@@ -18,6 +18,7 @@
   --color-dark: lab(9.26% 0 0);
   --color-green: oklab(60% -50% 50%);
   --color-red: oklab(51.902% 0.18588 0.10399);
+  --color-purple: oklab(39.415% 0.1566 -0.07404);
   --contrast: 2.5;
 
   background-color: var(--color-dark);
@@ -42,13 +43,16 @@ footer {
 
   border: none;
   border-radius: 0;
+  --color-border: var(--color-dark);
   box-shadow:
     inset -2px -2px
-      hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast))),
-    inset 2px 2px hsl(from var(--color-dark) h s calc(l + 8 * var(--contrast))),
+      hsl(from var(--color-border) h s calc(l + 2 * var(--contrast))),
+    inset 2px 2px
+      hsl(from var(--color-border) h s calc(l + 8 * var(--contrast))),
     inset -3px -3px
-      hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast))),
-    inset 3px 3px hsl(from var(--color-dark) h s calc(l + 2 * var(--contrast)));
+      hsl(from var(--color-border) h s calc(l + 2 * var(--contrast))),
+    inset 3px 3px
+      hsl(from var(--color-border) h s calc(l + 2 * var(--contrast)));
 }
 
 .box * {
@@ -428,4 +432,19 @@ div:has(> .icon.double-flash) {
 .scroll {
   overflow-y: scroll;
   max-height: 40vh;
+}
+
+.pulsar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3rem;
+  height: 3rem;
+
+  background-color: purple;
+  opacity: 0;
+  visibility: hidden;
+  &.active {
+    visibility: initial;
+  }
 }
