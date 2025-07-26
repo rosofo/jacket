@@ -1,6 +1,6 @@
 import { create } from "zustand/react";
 
-export type SettingsStore = {
+type SettingsStore = {
   enable: {
     logPanel: boolean;
     filePanel: boolean;
@@ -9,7 +9,7 @@ export type SettingsStore = {
   };
   setEnabled: (name: string, enabled: boolean) => void;
 };
-export const useSettingsStore = create<SettingsStore>((set) => ({
+const useSettingsStore = create<SettingsStore>((set) => ({
   enable: {
     canvasPanel: true,
     filePanel: true,

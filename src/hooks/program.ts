@@ -7,18 +7,18 @@ import { getLogger } from "@logtape/logtape";
 
 const logger = getLogger(["jacket", "program"]);
 
-export type ItemMeta = {
+type ItemMeta = {
   parentId?: string;
   id: string;
   ephemeral?: boolean;
   callChain: string;
 };
-export type Item = { value: unknown };
+type Item = { value: unknown };
 
 export type ProgramItem = Item & ItemMeta;
 export type Program = ProgramItem[];
 
-export type ProgramStore = {
+type ProgramStore = {
   program: Program;
   renderFunc: null | (() => void);
   evalProgram: (js: string, files: Record<string, string>) => Promise<void>;
@@ -68,13 +68,14 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
       ProxifyOptions<{ id: string; parentId?: string }>
     > = {
       functionExecCallback: (caller, args, func) => {
+        // @ts-ignore
         return { value: func(...args.map(unproxify)) };
       },
       valueCallback: (caller, rawValue) => {
         if (typeof rawValue === "function" || rawValue instanceof Promise)
           return;
         const context = caller.getContext();
-        const newCtx = { id: uuid(), parentId: context.id };
+        const newCtx = { id: uuid(), parentId: (context as { id: string }).id };
         addMaybe(rawValue, {
           ...newCtx,
           callChain: caller.toCallChainString(),

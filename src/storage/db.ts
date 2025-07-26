@@ -14,6 +14,5 @@ const db = new Dexie("HandleDatabase") as Dexie & {
 db.version(1).stores({
   handles: "++name, handle",
 });
-
-export type { Handle };
+;
 export { db };

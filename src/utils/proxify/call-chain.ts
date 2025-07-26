@@ -2,7 +2,7 @@ import { getLogger, type Logger } from "@logtape/logtape";
 
 const logger = getLogger(["proxify", "call-chain"]);
 
-export type BaseTypes =
+type BaseTypes =
   | "string"
   | "number"
   | "bigint"
@@ -11,7 +11,7 @@ export type BaseTypes =
   | "undefined"
   | "object"
   | "function";
-export type Caller =
+type Caller =
   | {
       name: string;
       type: BaseTypes;
@@ -54,7 +54,7 @@ export class CallChain {
     return result;
   }
 }
-export function callerString(caller: Caller) {
+function callerString(caller: Caller) {
   switch (caller.type) {
     case "executed":
       return "()";

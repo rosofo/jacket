@@ -4,7 +4,7 @@ import { getLogger } from "@logtape/logtape";
 
 const logger = getLogger(["jacket", "graph"]);
 
-export type Graph = g.DirectedGraph<
+type Graph = g.DirectedGraph<
   Omit<ProgramItem, "id" | "parentId" | "callChain">,
   { callChain: string }
 >;
@@ -23,7 +23,7 @@ export function toGraph(program: Program): Graph {
         graph.addDirectedEdge(item.parentId, item.id, {
           callChain: item.callChain,
         });
-      } catch (e) {
+      } catch {
         errors++;
       }
   }

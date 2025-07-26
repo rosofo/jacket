@@ -1,5 +1,4 @@
 import {
-  GiAbacus,
   GiCircuitry,
   GiPerspectiveDiceFour,
   GiTreasureMap,
@@ -21,7 +20,7 @@ import {
   type ProgramItem,
 } from "../hooks/program";
 import Dagre from "@dagrejs/dagre";
-import { Fragment, useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { pruneGraph, toGraph } from "./graph";
 
 export default function Overview() {
@@ -69,7 +68,11 @@ function buildData(program: Program): [Node[], Edge[]] {
   return [nodes, edges];
 }
 
-const getLayoutedElements = (nodes, edges, options) => {
+const getLayoutedElements = (
+  nodes: Node<Record<string, unknown>>[],
+  edges: Edge[],
+  options: { direction: string }
+) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: options.direction });
 
@@ -109,7 +112,7 @@ function buildNode(
   attributes: Omit<ProgramItem, "id" | "parentId" | "callChain">
 ) {
   let type = "default";
-  let data = {
+  const data: BaseData & Record<string, unknown> = {
     label:
       attributes.value?.constructor?.name ||
       attributes.value?.toString() ||
@@ -178,10 +181,7 @@ function StatusNode(props: JacketProps<BaseData & StatusData>) {
   );
 }
 
-function BaseNode({
-  children,
-  ...props
-}: JacketProps & { children?: ReactNode }) {
+function BaseNode({ children }: JacketProps & { children?: ReactNode }) {
   return (
     <div className="box small relative">
       {children}

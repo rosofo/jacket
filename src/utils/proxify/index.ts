@@ -1,13 +1,9 @@
 // Note: Will probs move to being a library at some point
 // Note: Currently a WIP
 
-import { getLogger } from "@logtape/logtape";
 import { CallChain } from "./call-chain";
-import { produce } from "immer";
 
-const logger = getLogger("proxify");
-
-export type BaseTypes =
+type BaseTypes =
   | "string"
   | "number"
   | "bigint"
@@ -17,15 +13,15 @@ export type BaseTypes =
   | "object"
   | "function";
 
-export type Proxified<T extends object> = T & ProxifyInternal<T>;
+type Proxified<T extends object> = T & ProxifyInternal<T>;
 
-export interface JsProxyProperties<T extends object, K extends keyof T> {
+interface JsProxyProperties<T extends object, K extends keyof T> {
   value: T[K];
   receiver: Proxified<T>;
   target: T;
 }
 
-export interface ProxifyInternal<T extends object> {
+interface ProxifyInternal<T extends object> {
   __proxify_internal: {
     rawValue: T;
     valueCallbackResult: unknown;
@@ -55,6 +51,7 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
 
   const internalFields: ProxifyInternal<T> = {
     [PROXIFY_INTERNAL_KEY]: {
+      // @ts-ignore
       rawValue: normalisedValue,
       valueCallbackResult: valueCallbackReturn,
       callChain: currentCaller,
@@ -87,6 +84,7 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   } else if (normalisedValue instanceof Function) {
     // Do not make this an arrow function, it wont work for *this* reasons :p
     const f = function (...actualArgs: unknown[]) {
+      // @ts-ignore
       const t = this === receiver ? target : this;
       const actualFunction = (...args: unknown[]) => {
         const result = normalisedValue.apply(t, args);
@@ -148,12 +146,12 @@ function handler<C extends object>(
   };
 }
 
-export type ProxifyReturn<C extends object> = {
+type ProxifyReturn<C> = {
   value?: unknown;
   context?: C;
 } | void;
 
-export interface ProxifyOptions<C extends object = object> {
+export interface ProxifyOptions<C> {
   valueCallback: (caller: CallChain, rawValue: unknown) => ProxifyReturn<C>;
   functionExecCallback: (
     caller: CallChain,
@@ -163,7 +161,7 @@ export interface ProxifyOptions<C extends object = object> {
   context: C;
 }
 
-export function proxify<T extends object, C extends object = object>(
+export function proxify<T extends object, C>(
   target: T,
   proxyifyOptions: Partial<ProxifyOptions<C>> = {}
 ): T {
@@ -174,6 +172,7 @@ export function proxify<T extends object, C extends object = object>(
   const options = { ...defaults, ...proxyifyOptions };
   const p = new Proxy(
     target,
+    // @ts-ignore
     handler(new CallChain([], options.context), options)
   );
   return Object.assign(p, {

@@ -1,20 +1,11 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import "./App.css";
-import {
-  useProgramStore,
-  useRenderLoop,
-  type GPUType,
-  type Program,
-} from "./hooks/program";
-import Editor from "./Editor";
-import { Type, type Static } from "@sinclair/typebox";
-import { Value } from "@sinclair/typebox/value";
+import { useProgramStore, useRenderLoop } from "./hooks/program";
 import Overview from "./visualization/overview";
 import { ReactFlowProvider } from "@xyflow/react";
 import Files from "./components/Files";
 import LogPanel from "./components/LogPanel";
 import { getLogger } from "@logtape/logtape";
-import usePulsar from "./hooks/pulsar";
 import useSettingsStore from "./hooks/settings";
 import Settings from "./components/Settings";
 

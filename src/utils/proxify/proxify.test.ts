@@ -1,12 +1,8 @@
 import { test, expect } from "vitest";
 import { getContext, proxify } from ".";
 import * as fc from "fast-check";
-import {
-  configure,
-  getAnsiColorFormatter,
-  getConsoleSink,
-  getJsonLinesFormatter,
-} from "@logtape/logtape";
+import { configure, getConsoleSink } from "@logtape/logtape";
+import type { CallChain } from "./call-chain";
 
 configure({
   loggers: [{ category: "proxify", sinks: ["console"], lowestLevel: "trace" }],
@@ -16,9 +12,19 @@ configure({
 test("context can be immutably updated from valueCallback", () => {
   const value = { a: { b: {} } };
   const proxied = proxify(value, {
-    valueCallback: (caller, value) => {
+    valueCallback: (caller) => {
       const context = caller.getContext();
-      return { context: { count: context.count + 1 } };
+      return {
+        context: {
+          count:
+            (
+              context as {
+                count: number;
+                i: number;
+              }
+            ).count + 1,
+        },
+      };
     },
     context: { count: 0 },
   });
@@ -40,7 +46,10 @@ test("context setting via property access is idempotent ", () => {
       context: { i: 0 },
       valueCallback: (caller, rawValue) => {
         const context = caller.getContext();
-        return { context: context.i + 1, value: rawValue };
+        return {
+          context: { i: (context as { i: number }).i + 1 },
+          value: rawValue,
+        };
       },
     }
   );
@@ -50,14 +59,16 @@ test("context setting via property access is idempotent ", () => {
 });
 
 test("context is passed to arbitrarily deep properties", () => {
-  type Tree = { a: Tree } | {};
-  const { tree: nested } = fc.letrec<{ tree: Tree; branch: Tree; leaf: {} }>(
-    (tie) => ({
-      tree: fc.oneof({ depthSize: "small" }, tie("branch"), tie("leaf")),
-      branch: fc.record({ a: tie("tree") }, { requiredKeys: [] }),
-      leaf: fc.constant({}),
-    })
-  );
+  type Tree = { a: Tree } | object;
+  const { tree: nested } = fc.letrec<{
+    tree: Tree;
+    branch: Tree;
+    leaf: object;
+  }>((tie) => ({
+    tree: fc.oneof({ depthSize: "small" }, tie("branch"), tie("leaf")),
+    branch: fc.record({ a: tie("tree") }, { requiredKeys: [] }),
+    leaf: fc.constant({}),
+  }));
 
   fc.assert(
     fc.property(nested, (nested) => {
@@ -65,21 +76,24 @@ test("context is passed to arbitrarily deep properties", () => {
         context: { i: 0 },
         valueCallback: (caller, rawValue) => {
           const context = caller.getContext();
-          if (context.i !== null)
-            return { value: rawValue, context: { i: context.i + 1 } };
+          if ((context as { i: number }).i !== null)
+            return {
+              value: rawValue,
+              context: { i: (context as { i: number }).i + 1 },
+            };
         },
       });
 
       let last = null;
       while (proxied !== undefined) {
-        const i = getContext(proxied).i;
+        const i = (getContext(proxied) as { i: number }).i;
 
         if (last !== null) {
           expect(i).to.equal(last + 1);
         }
 
         last = i;
-        proxied = proxied.a;
+        proxied = (proxied as { a: object }).a;
       }
     }),
     { verbose: true, includeErrorInReport: true }
@@ -100,7 +114,10 @@ test("context can be modified on method calls", () => {
       context: { i: 0 },
       functionExecCallback: (caller, args, func) => {
         const context = caller.getContext();
-        return { value: func(...args), context: { i: context.i + 1 } };
+        return {
+          value: func(...args),
+          context: { i: (context as { i: number }).i + 2 },
+        };
       },
     }
   );
@@ -112,9 +129,9 @@ test("context can be modified on method calls", () => {
 test("context is passed through promises", async () => {
   const p = proxify(async () => ({}), {
     context: { i: 0 },
-    valueCallback: (caller, value) => {
+    valueCallback: (caller) => {
       const context = caller.getContext();
-      return { context: { i: context.i + 1 } };
+      return { context: { i: (context as { i: number }).i + 1 } };
     },
   });
 
@@ -129,7 +146,7 @@ test("value callback is called", () => {
   const p = proxify(
     { a: () => () => {} },
     {
-      valueCallback: (caller, rawValue) => {
+      valueCallback: (caller) => {
         chains.push(caller);
       },
     }

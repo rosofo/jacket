@@ -2,7 +2,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
-import "./userWorker";
 
 import { configure, type LogRecord } from "@logtape/logtape";
 import { useLogStore } from "./hooks/log.ts";

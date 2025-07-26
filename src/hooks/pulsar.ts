@@ -13,7 +13,7 @@ export default function usePulsar(
   x?: number,
   y?: number
 ): { at: (x: number, y: number) => void } {
-  const root = useMemo(setupRoot, []);
+  const root = useMemo(() => setupRoot(), []);
   const id = useMemo(() => uuid(), []);
   useEffect(() => createPool(root), [root]);
 
@@ -48,11 +48,11 @@ export default function usePulsar(
         ],
       });
     },
-    [root]
+    [id]
   );
   useEffect(() => {
     if (x !== undefined && y !== undefined) spawn(x, y);
-  }, [x, y]);
+  }, [x, y, spawn]);
 
   return { at: spawn };
 }
