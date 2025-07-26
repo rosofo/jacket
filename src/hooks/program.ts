@@ -7,7 +7,12 @@ import { getLogger } from "@logtape/logtape";
 
 const logger = getLogger(["jacket", "program"]);
 
-export type ItemMeta = { parentId?: string; id: string; ephemeral?: boolean };
+export type ItemMeta = {
+  parentId?: string;
+  id: string;
+  ephemeral?: boolean;
+  callChain: string;
+};
 export type Item = { value: unknown };
 
 export type ProgramItem = Item & ItemMeta;
@@ -26,6 +31,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   program: [],
   renderFunc: null,
   evalProgram: async (js: string, files: Record<string, string>) => {
+    logger.info`Reloading program after change...`;
     set({ program: [] });
     const blob = new Blob([js], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
@@ -39,12 +45,16 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     let isSetup = true;
     const addMaybe = (
       value: unknown,
-      { id, parentId }: { id: string; parentId?: string }
+      {
+        id,
+        parentId,
+        callChain,
+      }: { id: string; parentId?: string; callChain: string }
     ) => {
       set(({ program }) => ({
         program: produce((program: Program) => {
           const ephemeral = !isSetup;
-          program.push({ ephemeral, id, parentId, value });
+          program.push({ ephemeral, id, parentId, value, callChain });
         })(program),
       }));
     };
@@ -65,7 +75,10 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
           return;
         const context = caller.getContext();
         const newCtx = { id: uuid(), parentId: context.id };
-        addMaybe(rawValue, newCtx);
+        addMaybe(rawValue, {
+          ...newCtx,
+          callChain: caller.toCallChainString(),
+        });
         return {
           value: rawValue,
           context: newCtx,

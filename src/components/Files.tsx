@@ -7,7 +7,6 @@ import {
 
 import { sortBy } from "es-toolkit";
 import { useFiles } from "../hooks/files";
-import type { IconType } from "react-icons/lib";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { useProgramStore } from "../hooks/program";
 import { filterObject, pipe } from "rambda";
@@ -140,7 +139,7 @@ export default function Files() {
   }
 
   return (
-    <div>
+    <div className="stack">
       <div className="cluster box small">
         <div className="stack">
           <h2>&nbsp;</h2>
@@ -176,7 +175,7 @@ export default function Files() {
           </div>
         </div>
       </div>
-      <div aria-label="status">
+      <div aria-label="status" className="scroll">
         {sortBy(Object.entries(files), [([k]) => k]).map(([name, text]) => {
           return (
             <div key={name}>

@@ -38,7 +38,7 @@ footer {
 }
 
 .box {
-  padding: var(--s1);
+  padding: var(--s0);
   background-color: hsl(from var(--color-dark) h s calc(l + var(--contrast)));
 
   border: none;
@@ -207,6 +207,13 @@ footer {
   }
 }
 
+.small:not(.box) {
+  font-size: var(--s-1);
+}
+
+.cluster.small {
+  gap: var(--s-3);
+}
 .box.small {
   padding: var(--s-1);
 }
@@ -215,7 +222,7 @@ footer {
   min-inline-size: 100vw;
   min-block-size: 100vh;
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: 50% auto;
   gap: 1rem;
   padding: 1rem;
 }
@@ -447,4 +454,35 @@ div:has(> .icon.double-flash) {
   &.active {
     visibility: initial;
   }
+}
+
+.overlay {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  background-blend-mode: overlay;
+  background-color: hsl(
+    from var(--color-dark) h s calc(l + var(--t) * var(--contrast))
+  );
+  --t: 1;
+
+  transition: all;
+  transition-duration: 0.05s;
+}
+.overlay:hover {
+  --t: 2;
+}
+
+.apart {
+  justify-content: space-between;
+}
+
+.relative {
+  position: relative;
+}
+.outside-right {
+  position: absolute;
+  left: 110%;
+  width: max-content;
+  top: 0.1rem;
 }

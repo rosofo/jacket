@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../storage/db";
 import { create } from "zustand/react";
+import { getLogger } from "@logtape/logtape";
+
+const logger = getLogger(["jacket", "files"]);
 
 type Status = null | "no-access" | "loading" | "loaded";
 const useFileStatus = create<{

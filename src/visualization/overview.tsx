@@ -1,4 +1,10 @@
 import {
+  GiAbacus,
+  GiCircuitry,
+  GiPerspectiveDiceFour,
+  GiTreasureMap,
+} from "react-icons/gi";
+import {
   Background,
   Handle,
   Position,
@@ -9,11 +15,14 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useProgramStore, type Program } from "../hooks/program";
+import {
+  useProgramStore,
+  type Program,
+  type ProgramItem,
+} from "../hooks/program";
 import Dagre from "@dagrejs/dagre";
-import { useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo, type ReactNode } from "react";
 import { pruneGraph, toGraph } from "./graph";
-import usePulsar from "../hooks/pulsar";
 
 export default function Overview() {
   const program = useProgramStore((state) => state.program);
@@ -33,8 +42,9 @@ export default function Overview() {
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      nodeTypes={{ default: DefaultNode }}
+      nodeTypes={{ default: DefaultNode, status: StatusNode }}
       colorMode="dark"
+      panOnDrag={false}
     >
       <Background />
     </ReactFlow>
@@ -44,25 +54,16 @@ export default function Overview() {
 function buildData(program: Program): [Node[], Edge[]] {
   const graph = toGraph(program);
   pruneGraph(graph);
-  const nodes: JacketNode[] = Array.from(graph.nodeEntries()).map(
-    ({ node, attributes }) => ({
-      id: node,
-      data: {
-        label:
-          attributes.value?.constructor?.name ||
-          attributes.value?.toString() ||
-          `${attributes.value}`,
-        ephemeral: attributes.ephemeral,
-      },
-      position: { x: 0, y: 0 },
-      type: "default",
-    })
+  const nodes = Array.from(graph.nodeEntries()).map(({ node, attributes }) =>
+    buildNode(node, attributes)
   );
   const edges: Edge[] = Array.from(graph.edgeEntries()).map((edge) => {
     return {
       source: edge.source,
       target: edge.target,
       id: `${edge.source}-${edge.target}`,
+      label: edge.attributes.callChain,
+      animated: edge.targetAttributes.ephemeral,
     };
   });
   return [nodes, edges];
@@ -76,8 +77,8 @@ const getLayoutedElements = (nodes, edges, options) => {
   nodes.forEach((node) =>
     g.setNode(node.id, {
       ...node,
-      width: node.measured?.width ?? 120,
-      height: node.measured?.height ?? 50,
+      width: node.measured?.width ?? 150,
+      height: node.measured?.height ?? 75,
     })
   );
 
@@ -97,15 +98,93 @@ const getLayoutedElements = (nodes, edges, options) => {
   };
 };
 
-type JacketNode = Node<{ label: string; ephemeral?: boolean }>;
-function DefaultNode(props: NodeProps<JacketNode>) {
-  const x = props.positionAbsoluteX;
-  const y = props.positionAbsoluteY;
-  const pos = useReactFlow().flowToScreenPosition({ x, y });
-  const pulsar = usePulsar(pos.x, pos.y);
+type BaseData = { label: string; ephemeral?: boolean };
+type StatusData = { statuses: { node: ReactNode }[] };
+type JacketProps<T extends Record<string, unknown> = BaseData> = NodeProps<
+  Node<T>
+>;
+
+function buildNode(
+  node: string,
+  attributes: Omit<ProgramItem, "id" | "parentId" | "callChain">
+) {
+  let type = "default";
+  let data = {
+    label:
+      attributes.value?.constructor?.name ||
+      attributes.value?.toString() ||
+      `${attributes.value}`,
+    ephemeral: attributes.ephemeral,
+  };
+  if (attributes.value instanceof GPUDevice) {
+    type = "status";
+    data.statuses = [
+      {
+        node: (
+          <div className="cluster small ">
+            <GiCircuitry />
+            {attributes.value.adapterInfo.architecture}
+          </div>
+        ),
+      },
+    ];
+  } else if (attributes.value instanceof GPUBuffer) {
+    type = "status";
+    data.statuses = [
+      {
+        node: (
+          <div className="cluster small">
+            <GiPerspectiveDiceFour />
+            {attributes.value.size}
+          </div>
+        ),
+      },
+      {
+        node: (
+          <div className="cluster small">
+            <GiTreasureMap />
+            {attributes.value.mapState}
+          </div>
+        ),
+      },
+    ];
+  }
+  return {
+    id: node,
+    data,
+    position: { x: 0, y: 0 },
+    type,
+  };
+}
+
+function DefaultNode(props: JacketProps) {
+  return <BaseNode {...props}>{props.data.label}</BaseNode>;
+}
+
+function StatusNode(props: JacketProps<BaseData & StatusData>) {
   return (
-    <div className="box small">
-      {props.data.label}
+    <div className="cluster">
+      <BaseNode {...props}>
+        {props.data.label}
+        <div className="outside-right stack">
+          {props.data.statuses.map((status, i) => (
+            <div key={i} className="small">
+              {status.node}
+            </div>
+          ))}
+        </div>
+      </BaseNode>
+    </div>
+  );
+}
+
+function BaseNode({
+  children,
+  ...props
+}: JacketProps & { children?: ReactNode }) {
+  return (
+    <div className="box small relative">
+      {children}
       <Handle position={Position.Top} type="target" />
       <Handle position={Position.Bottom} type="source" />
     </div>

@@ -4,7 +4,10 @@ import { getLogger } from "@logtape/logtape";
 
 const logger = getLogger(["jacket", "graph"]);
 
-export type Graph = g.DirectedGraph<Omit<ProgramItem, "id" | "parentId">>;
+export type Graph = g.DirectedGraph<
+  Omit<ProgramItem, "id" | "parentId" | "callChain">,
+  { callChain: string }
+>;
 
 export function toGraph(program: Program): Graph {
   const graph: Graph = new g.DirectedGraph();
@@ -13,13 +16,19 @@ export function toGraph(program: Program): Graph {
     logger.trace`Add node: ${item}`;
     graph.addNode(item.id, { value: item.value, ephemeral: item.ephemeral });
   }
+  let errors = 0;
   for (const item of program) {
     if (item.parentId !== undefined)
       try {
-        graph.addDirectedEdge(item.parentId, item.id);
+        graph.addDirectedEdge(item.parentId, item.id, {
+          callChain: item.callChain,
+        });
       } catch (e) {
-        logger.error`Failed to add edge from ${item.id} to ${item.parentId}. Node type: ${typeof item.value}`;
+        errors++;
       }
+  }
+  if (errors > 0) {
+    logger.debug`Failed to add ${errors} edges`;
   }
   return graph;
 }
