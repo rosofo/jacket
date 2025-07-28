@@ -88,8 +88,10 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
       context: { id: uuid() },
     };
     const navProxy = proxify(navigator, proxifyOpts);
-    const contextProxy = proxify(state.context!, proxifyOpts);
-    const renderFunc = await module.program(navProxy, contextProxy, files);
+    const canvasProxy = proxify(state.canvas!, proxifyOpts);
+    const renderFunc = await module.program(navProxy, canvasProxy, files, {
+      logger: getLogger(["jacket", "user"]),
+    });
 
     isSetup = false;
     if (typeof renderFunc === "function") {

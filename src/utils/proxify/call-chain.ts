@@ -13,7 +13,7 @@ type BaseTypes =
   | "function";
 type Caller =
   | {
-      name: string;
+      name: string | symbol;
       type: BaseTypes;
       value: unknown;
       context?: unknown;
@@ -35,7 +35,7 @@ export class CallChain {
     return new CallChain([...this.chain, caller], this.rootContext);
   }
   toCallChainString(): string {
-    return this.chain.map((call) => `.${callerString(call)}`).join("");
+    return this.chain.map((call) => `.${String(callerString(call))}`).join("");
   }
   toString(): string {
     return this.chain.toString();

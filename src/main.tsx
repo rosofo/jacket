@@ -11,7 +11,10 @@ function storeSink(record: LogRecord) {
 }
 await configure({
   sinks: { store: storeSink },
-  loggers: [{ category: "jacket", lowestLevel: "info", sinks: ["store"] }],
+  loggers: [
+    { category: "jacket", lowestLevel: "info", sinks: ["store"] },
+    { category: ["jacket", "user"], lowestLevel: "trace", sinks: ["store"] },
+  ],
 });
 
 createRoot(document.getElementById("root")!).render(

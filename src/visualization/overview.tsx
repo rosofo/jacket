@@ -25,7 +25,6 @@ import { pruneGraph, toGraph } from "./graph";
 
 export default function Overview() {
   const program = useProgramStore((state) => state.program);
-  const { fitView } = useReactFlow();
 
   const [nodes, edges] = useMemo(() => {
     const [nodes, edges] = buildData(program);
@@ -33,9 +32,6 @@ export default function Overview() {
 
     return [[...layouted.nodes], [...layouted.edges]];
   }, [program]);
-  useEffect(() => {
-    fitView();
-  }, [program, fitView]);
 
   return (
     <ReactFlow
@@ -43,7 +39,6 @@ export default function Overview() {
       edges={edges}
       nodeTypes={{ default: DefaultNode, status: StatusNode }}
       colorMode="dark"
-      panOnDrag={false}
     >
       <Background />
     </ReactFlow>

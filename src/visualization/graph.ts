@@ -49,5 +49,10 @@ export function pruneGraph(graph: Graph) {
   }
 }
 function shouldPrune(value: unknown) {
-  return value === undefined || typeof value === "function";
+  return (
+    value === undefined ||
+    typeof value === "function" ||
+    typeof value === "string" ||
+    typeof value === "number"
+  );
 }

@@ -30,7 +30,6 @@ interface ProxifyInternal<T extends object> {
 }
 
 const PROXIFY_INTERNAL_KEY = "__proxify_internal";
-// TODO proxify that too
 /**
  * - target: the object being accessed, e.g. target['property'] or target.property
  * - receiver: the value of `this` for the current getter
@@ -194,9 +193,11 @@ export function unproxify<T extends object>(
   if (proxied instanceof Array) {
     return proxied.map(unproxify) as T;
   } else {
-    return Object.fromEntries(
-      Object.entries(proxied).map(([key, val]) => [key, unproxify(val)])
-    ) as T;
+    // can't do Object.fromEntries etc because some exotic objects like GPUBuffer shouldn't be copied
+    for (const key of Object.keys(proxied)) {
+      proxied[key] = unproxify(proxied[key]);
+    }
+    return proxied;
   }
 }
 
