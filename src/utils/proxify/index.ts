@@ -2,6 +2,8 @@
 // Note: Currently a WIP
 
 import { CallChain } from "./call-chain";
+import { Tracking } from "./track";
+import type { ProxifyState } from "./types";
 
 type BaseTypes =
   | "string"
@@ -13,23 +15,12 @@ type BaseTypes =
   | "object"
   | "function";
 
-type Proxified<T extends object> = T & ProxifyInternal<T>;
-
 interface JsProxyProperties<T extends object, K extends keyof T> {
   value: T[K];
-  receiver: Proxified<T>;
+  receiver: T;
   target: T;
 }
 
-interface ProxifyInternal<T extends object> {
-  __proxify_internal: {
-    rawValue: T;
-    valueCallbackResult: unknown;
-    callChain: CallChain;
-  };
-}
-
-const PROXIFY_INTERNAL_KEY = "__proxify_internal";
 /**
  * - target: the object being accessed, e.g. target['property'] or target.property
  * - receiver: the value of `this` for the current getter
@@ -48,13 +39,10 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
     currentCaller = withContext(currentCaller, valueCallbackReturn.context);
   }
 
-  const internalFields: ProxifyInternal<T> = {
-    [PROXIFY_INTERNAL_KEY]: {
-      // @ts-ignore
-      rawValue: normalisedValue,
-      valueCallbackResult: valueCallbackReturn,
-      callChain: currentCaller,
-    },
+  const state: ProxifyState = {
+    rawValue: normalisedValue,
+    valueCallbackResult: valueCallbackReturn,
+    callChain: currentCaller,
   };
 
   if (normalisedValue instanceof Promise) {
@@ -112,10 +100,12 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
       );
       return p;
     };
-    return Object.assign(f, internalFields);
+    Tracking.trackProxy(f, state);
+    return f;
   } else if (normalisedValue instanceof Object) {
     const p = new Proxy(normalisedValue, handler(currentCaller, options));
-    return Object.assign(p, internalFields);
+    Tracking.trackProxy(p, state);
+    return p;
   }
   return normalisedValue;
 }
@@ -127,10 +117,9 @@ function handler<C extends object>(
     get(
       target: Record<string, unknown>,
       property: string,
-      receiver: Proxified<Record<string, unknown>>
+      receiver: Record<string, unknown>
     ): unknown {
       const value = target[property];
-      if (property === PROXIFY_INTERNAL_KEY) return value;
       const currentCaller = caller.extend({
         name: property,
         type: typeof value,
@@ -174,22 +163,22 @@ export function proxify<T extends object, C>(
     // @ts-ignore
     handler(new CallChain([], options.context), options)
   );
-  return Object.assign(p, {
-    [PROXIFY_INTERNAL_KEY]: { callChain: new CallChain([], options.context) },
-  });
+  const state = { callChain: new CallChain([], options.context) };
+  Tracking.trackProxy(p, state);
+  return p;
 }
 
-export function unproxify<T extends object>(
-  proxied: Proxified<T> | Proxified<T>[] | T
-): T {
+export function unproxify<T>(proxied: T): T {
   if (proxied === null || proxied === undefined || typeof proxied !== "object")
     return proxied as T;
-  if (PROXIFY_INTERNAL_KEY in proxied) {
-    const internals = proxied[
-      PROXIFY_INTERNAL_KEY
-    ] as ProxifyInternal<T>["__proxify_internal"];
-    return internals.rawValue;
+  const state = Tracking.getState(proxied);
+
+  if (state !== undefined) {
+    return state.rawValue as T;
   }
+
+  // There was no associated state, meaning we're dealing with a plain unproxied value.
+
   if (proxied instanceof Array) {
     return proxied.map(unproxify) as T;
   } else {
@@ -202,12 +191,8 @@ export function unproxify<T extends object>(
 }
 
 function getCallChain(proxied: unknown) {
-  if (
-    typeof proxied === "object" &&
-    proxied !== null &&
-    PROXIFY_INTERNAL_KEY in proxied
-  ) {
-    return (proxied as ProxifyInternal<object>).__proxify_internal.callChain;
+  if (typeof proxied === "object" && proxied !== null) {
+    return Tracking.getState(proxied)?.callChain;
   }
 }
 

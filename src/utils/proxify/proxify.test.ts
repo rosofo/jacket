@@ -54,8 +54,8 @@ test("context setting via property access is idempotent ", () => {
     }
   );
 
-  expect(getContext(p.a)).to.equal(1);
-  expect(getContext(p.a)).to.equal(1);
+  expect(getContext(p.a).i).to.equal(1);
+  expect(getContext(p.a).i).to.equal(1);
 });
 
 test("context is passed to arbitrarily deep properties", () => {
@@ -116,7 +116,7 @@ test("context can be modified on method calls", () => {
         const context = caller.getContext();
         return {
           value: func(...args),
-          context: { i: (context as { i: number }).i + 2 },
+          context: { i: (context as { i: number }).i + 1 },
         };
       },
     }
