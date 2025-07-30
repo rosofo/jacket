@@ -1,9 +1,10 @@
+import { getLogger } from "@logtape/logtape";
 import xxhash from "xxhash-wasm";
 const hashes = await xxhash();
 
-export function genId(data: unknown, parentId: string) {
-  const trace = {} as { stack: string };
-  Error.captureStackTrace(trace);
-  const digest = hashes.h32(trace.stack + parentId, 0);
+const logger = getLogger(["jacket", "tracking"]);
+
+export function genId(data: string, parentId: string) {
+  const digest = hashes.h32(data + parentId);
   return digest.toString();
 }

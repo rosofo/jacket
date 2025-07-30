@@ -12,9 +12,14 @@ export function getSourceAt(
 
 // bad.
 export function parsePositionFromStacktrace(stacktrace: string) {
-  let [line, column] = stacktrace.split(":").slice(-2);
-  column = column.slice(0, -1); // get rid of trailing `)`
-  return { line, column };
+  const matches = [...stacktrace.matchAll(/blob:.*?:(\d+:\d+)/g)];
+  const match = matches.slice(-1)[0];
+  if (match !== undefined) {
+    const pos = match[1];
+    const [line, column] = pos.split(":");
+
+    return { line, column };
+  }
 }
 
 export function translateError(error: unknown, files: Record<string, string>) {
@@ -22,14 +27,14 @@ export function translateError(error: unknown, files: Record<string, string>) {
   const position = parsePositionFromStacktrace(err.stack!);
   const origPosition = getSourceAt(
     files,
-    parseInt(position.line),
-    parseInt(position.column)
+    parseInt(position!.line),
+    parseInt(position!.column)
   );
   let line, column;
   let filepath;
   if (origPosition === undefined) {
-    line = position.line;
-    column = position.column;
+    line = position!.line;
+    column = position!.column;
   } else {
     line = origPosition.line;
     column = origPosition.column;

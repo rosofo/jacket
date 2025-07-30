@@ -36,6 +36,8 @@ type ProgramStore = {
   setPlaying: (fn: (current: boolean) => boolean) => void;
 };
 
+const seen = [];
+
 export const useProgramStore = create<ProgramStore>((set, get) => ({
   program: [],
   renderFunc: null,
@@ -46,13 +48,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   evalProgram: async (js: string, files: Record<string, string>) => {
     logger.info`Reloading program after change...`;
     set({ program: [] });
-    const blob = new Blob([js], { type: "text/javascript" });
-    const url = URL.createObjectURL(blob);
-    const module = await import(
-      /* @vite-ignore */
-      url
-    );
-    URL.revokeObjectURL(url);
+    const module = await compileModule(js);
     const state = get();
 
     let isSetup = true;
@@ -67,6 +63,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
       set(({ program }) => ({
         program: produce((program: Program) => {
           const ephemeral = !isSetup;
+
           program.push({ ephemeral, id, parentId, value, callChain });
         })(program),
       }));
@@ -79,31 +76,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
 
     const proxifyOpts: Partial<
       ProxifyOptions<{ id: string; parentId?: string }>
-    > = {
-      functionExecCallback: (caller, args, func) => {
-        // @ts-ignore
-        return { value: func(...args.map(unproxify)) };
-      },
-      valueCallback: (caller, rawValue) => {
-        if (typeof rawValue === "function" || rawValue instanceof Promise)
-          return;
-        const context = caller.getContext();
-        const parentId = (context as { id: string }).id;
-        const newCtx = {
-          id: genId(rawValue, parentId),
-          parentId,
-        };
-        addMaybe(rawValue, {
-          ...newCtx,
-          callChain: caller.toCallChainString(),
-        });
-        return {
-          value: rawValue,
-          context: newCtx,
-        };
-      },
-      context: { id: "" },
-    };
+    > = createProxifyOpts(addMaybe);
     const navProxy = proxify(navigator, proxifyOpts);
     const contextProxy = proxify(state.context!, proxifyOpts);
     let renderFunc;
@@ -145,6 +118,63 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   },
 }));
 
+export function createProxifyOpts(
+  addMaybe: (
+    value: unknown,
+    {
+      id,
+      parentId,
+      callChain,
+    }: { id: string; parentId?: string; callChain: string }
+  ) => void
+): Partial<ProxifyOptions<{ id: string; parentId?: string }>> {
+  return {
+    functionExecCallback: (caller, args, func) => {
+      return { value: func(...args.map(unproxify)) };
+    },
+    valueCallback: (caller, rawValue) => {
+      if (typeof rawValue === "function" || rawValue instanceof Promise) return;
+      const context = caller.getContext();
+      const parentId = (context as { id: string }).id;
+
+      const trace = captureTrace();
+      const position = parsePositionFromStacktrace(trace.stack);
+      console.log(position);
+      const id = genId(
+        String(rawValue) + `${position?.line}:${position?.column}`,
+        parentId
+      );
+      if (seen.length > 0) {
+        seen.slice(-1)[0].add(id);
+      }
+      const newCtx = {
+        id,
+        parentId,
+      };
+      addMaybe(rawValue, {
+        ...newCtx,
+        callChain: caller.toCallChainString(),
+      });
+      return {
+        value: rawValue,
+        context: newCtx,
+      };
+    },
+    context: { id: "" },
+  };
+}
+
+export async function compileModule(js: string) {
+  const blob = new Blob([js], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  const module = await import(
+    /* @vite-ignore */
+    url
+  );
+  URL.revokeObjectURL(url);
+  return module;
+}
+
 export function useRenderLoop() {
   const renderFunc = useProgramStore(useShallow((state) => state.renderFunc));
   const playing = useProgramStore(useShallow((state) => state.playing));
@@ -153,7 +183,9 @@ export function useRenderLoop() {
     if (playing && renderFunc !== null) {
       let cancelled = false;
       const animate = () => {
+        seen.push(new Set());
         renderFunc();
+
         if (!cancelled) requestAnimationFrame(animate);
       };
 
@@ -164,4 +196,10 @@ export function useRenderLoop() {
       };
     }
   }, [renderFunc, playing]);
+}
+
+function captureTrace() {
+  const trace = {} as { stack: string };
+  Error.captureStackTrace(trace);
+  return trace;
 }

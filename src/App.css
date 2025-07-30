@@ -44,8 +44,7 @@ footer {
   border: none;
   border-radius: 0;
   --color-border: var(--color-dark);
-  box-shadow:
-    inset -2px -2px
+  box-shadow: inset -2px -2px
       hsl(from var(--color-border) h s calc(l + 2 * var(--contrast))),
     inset 2px 2px
       hsl(from var(--color-border) h s calc(l + 8 * var(--contrast))),
@@ -231,8 +230,7 @@ footer {
   background: hsl(from var(--color-dark) h s calc(l - 1 * var(--contrast)));
   border: none;
   border-radius: 0;
-  box-shadow:
-    inset -2px -2px
+  box-shadow: inset -2px -2px
       hsl(from var(--color-dark) h s calc(l + 1 * var(--contrast))),
     inset 2px 2px hsl(from var(--color-dark) h s calc(l + 1 * var(--contrast))),
     inset -3px -3px
@@ -256,13 +254,13 @@ footer {
 }
 .node.active {
   border: 2px transparent solid;
-  background-image:
-    linear-gradient(var(--color-dark) 0%, var(--color-dark) 100%),
+  background-image: linear-gradient(
+      var(--color-dark) 0%,
+      var(--color-dark) 100%
+    ),
     linear-gradient(var(--turn), var(--color-light), var(--color-dark));
   background-size: cover, cover;
-  background-position:
-    0% 0%,
-    0% 0%;
+  background-position: 0% 0%, 0% 0%;
   background-clip: padding-box, border-box;
   background-origin: border-box;
   background-color: unset;
@@ -485,4 +483,10 @@ div:has(> .icon.double-flash) {
   left: 110%;
   width: max-content;
   top: 0.1rem;
+}
+
+.react-flow__edge {
+  --xy-edge-stroke: hsl(
+    from var(--color-light) h s calc(l - 15 * var(--contrast))
+  );
 }

@@ -14,6 +14,11 @@ await configure({
   loggers: [
     { category: "jacket", lowestLevel: "info", sinks: ["store"] },
     { category: ["jacket", "user"], lowestLevel: "trace", sinks: ["store"] },
+    {
+      category: ["jacket", "tracking"],
+      lowestLevel: "trace",
+      sinks: ["store"],
+    },
   ],
 });
 
