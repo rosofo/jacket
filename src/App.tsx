@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import "./App.css";
 import { useProgramStore, useRenderLoop } from "./hooks/program";
 import Overview from "./visualization/overview";
@@ -8,6 +8,7 @@ import LogPanel from "./components/LogPanel";
 import { getLogger } from "@logtape/logtape";
 import useSettingsStore from "./hooks/settings";
 import Settings from "./components/Settings";
+import { GiPauseButton, GiPlayButton } from "react-icons/gi";
 
 const logger = getLogger(["jacket"]);
 
@@ -19,7 +20,10 @@ function App() {
   return (
     <div>
       <div className="layout">
-        <div className="box">{settings.enable.canvasPanel && <Canvas />}</div>
+        <div className="box">
+          <Controls />
+          {settings.enable.canvasPanel && <Canvas />}
+        </div>
         <div className="box">
           {settings.enable.graphPanel && (
             <ReactFlowProvider>
@@ -49,6 +53,23 @@ function Canvas() {
   return (
     <div className="frame">
       <canvas ref={ref} className="primary"></canvas>
+    </div>
+  );
+}
+
+function Controls() {
+  const playing = useProgramStore((state) => state.playing);
+  const setPlaying = useProgramStore((state) => state.setPlaying);
+
+  const onClick = useCallback(
+    () => setPlaying((playing) => !playing),
+    [setPlaying]
+  );
+  return (
+    <div>
+      <button onClick={onClick}>
+        {!playing ? <GiPlayButton /> : <GiPauseButton />}
+      </button>
     </div>
   );
 }

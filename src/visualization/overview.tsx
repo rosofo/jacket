@@ -67,7 +67,7 @@ function buildData(program: Program): [Node[], Edge[]] {
       target: edge.target,
       id: `${edge.source}-${edge.target}`,
       label: edge.attributes.callChain,
-      type: edge.targetAttributes.ephemeral ? "animated" : undefined,
+      animated: edge.targetAttributes.ephemeral,
     };
   });
   return [nodes, edges];

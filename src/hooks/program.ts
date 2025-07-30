@@ -9,6 +9,8 @@ import {
   parsePositionFromStacktrace,
   translateError,
 } from "../utils/sourcemap";
+import { genId } from "../utils/id";
+import { useShallow } from "zustand/react/shallow";
 
 const logger = getLogger(["jacket", "program"]);
 
@@ -30,11 +32,17 @@ type ProgramStore = {
   canvas: HTMLCanvasElement | null;
   context: GPUCanvasContext | null;
   setCanvas: (canvas: HTMLCanvasElement) => void;
+  playing: boolean;
+  setPlaying: (fn: (current: boolean) => boolean) => void;
 };
 
 export const useProgramStore = create<ProgramStore>((set, get) => ({
   program: [],
   renderFunc: null,
+  playing: true,
+  setPlaying: (fn) => {
+    set((state) => ({ playing: fn(state.playing) }));
+  },
   evalProgram: async (js: string, files: Record<string, string>) => {
     logger.info`Reloading program after change...`;
     set({ program: [] });
@@ -80,7 +88,11 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
         if (typeof rawValue === "function" || rawValue instanceof Promise)
           return;
         const context = caller.getContext();
-        const newCtx = { id: uuid(), parentId: (context as { id: string }).id };
+        const parentId = (context as { id: string }).id;
+        const newCtx = {
+          id: genId(rawValue, parentId),
+          parentId,
+        };
         addMaybe(rawValue, {
           ...newCtx,
           callChain: caller.toCallChainString(),
@@ -90,7 +102,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
           context: newCtx,
         };
       },
-      context: { id: uuid() },
+      context: { id: "" },
     };
     const navProxy = proxify(navigator, proxifyOpts);
     const contextProxy = proxify(state.context!, proxifyOpts);
@@ -134,19 +146,22 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
 }));
 
 export function useRenderLoop() {
-  const renderFunc = useProgramStore((state) => state.renderFunc);
+  const renderFunc = useProgramStore(useShallow((state) => state.renderFunc));
+  const playing = useProgramStore(useShallow((state) => state.playing));
+
   useEffect(() => {
-    if (renderFunc !== null) {
+    if (playing && renderFunc !== null) {
       let cancelled = false;
       const animate = () => {
         renderFunc();
         if (!cancelled) requestAnimationFrame(animate);
       };
+
       requestAnimationFrame(animate);
 
       return () => {
         cancelled = true;
       };
     }
-  });
+  }, [renderFunc, playing]);
 }
