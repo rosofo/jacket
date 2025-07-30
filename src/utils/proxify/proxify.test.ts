@@ -76,11 +76,10 @@ test("context is passed to arbitrarily deep properties", () => {
         context: { i: 0 },
         valueCallback: (caller, rawValue) => {
           const context = caller.getContext();
-          if ((context as { i: number }).i !== null)
-            return {
-              value: rawValue,
-              context: { i: (context as { i: number }).i + 1 },
-            };
+          return {
+            value: rawValue,
+            context: { i: (context as { i: number }).i + 1 },
+          };
         },
       });
 
@@ -127,17 +126,21 @@ test("context can be modified on method calls", () => {
 });
 
 test("context is passed through promises", async () => {
-  const p = proxify(async () => ({}), {
-    context: { i: 0 },
-    valueCallback: (caller) => {
-      const context = caller.getContext();
-      return { context: { i: (context as { i: number }).i + 1 } };
-    },
-  });
+  const p = proxify(
+    { a: Promise.resolve({}) },
+    {
+      context: { i: 0 },
+      valueCallback: (caller) => {
+        const context = caller.getContext();
+        return { context: { i: (context as { i: number }).i + 1 } };
+      },
+    }
+  );
 
-  expect(getContext(await p()))
+  expect(getContext(await p.a))
     .to.have.property("i")
     .equals(2);
+  expect(getContext(p.a)).to.have.property("i").equals(1);
   expect(getContext(p)).to.have.property("i").equals(0);
 });
 

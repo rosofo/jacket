@@ -23,6 +23,8 @@ export async function program(
   const device = await adapter?.requestDevice();
 
   const devicePixelRatio = window.devicePixelRatio;
+  canvas.width = canvas.clientWidth * devicePixelRatio;
+  canvas.height = canvas.clientHeight * devicePixelRatio;
   const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 
   const context = canvas.getContext("webgpu");

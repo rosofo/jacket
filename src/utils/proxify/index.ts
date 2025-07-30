@@ -67,6 +67,7 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
           );
         });
     });
+    Tracking.trackProxy(promise, state);
     return promise; // TODO proxify that too
   } else if (normalisedValue instanceof Function) {
     // Do not make this an arrow function, it wont work for *this* reasons :p
@@ -171,12 +172,11 @@ export function proxify<T extends object, C>(
 export function unproxify<T>(proxied: T): T {
   if (proxied === null || proxied === undefined || typeof proxied !== "object")
     return proxied as T;
-  const state = Tracking.getState(proxied);
 
+  const state = Tracking.getState(proxied);
   if (state !== undefined) {
     return state.rawValue as T;
   }
-
   // There was no associated state, meaning we're dealing with a plain unproxied value.
 
   if (proxied instanceof Array) {

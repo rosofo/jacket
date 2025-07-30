@@ -7,6 +7,6 @@ export default defineConfig({
       formats: ["es"],
       fileName: "main",
     },
-    minify: false,
+    sourcemap: true,
   },
 });

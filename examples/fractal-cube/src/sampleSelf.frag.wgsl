@@ -1,22 +1,12 @@
-struct Uniforms {
-  modelViewProjectionMatrix : mat4x4f,
-}
-@binding(0) @group(0) var<uniform> uniforms : Uniforms;
+@binding(1) @group(0) var mySampler: sampler;
+@binding(2) @group(0) var myTexture: texture_2d<f32>;
 
-struct VertexOutput {
-  @builtin(position) Position : vec4f,
-  @location(0) fragUV : vec2f,
-  @location(1) fragPosition: vec4f,
-}
-
-@vertex
+@fragment
 fn main(
-  @location(0) position : vec4f,
-  @location(1) uv : vec2f
-) -> VertexOutput {
-  var output : VertexOutput;
-  output.Position = uniforms.modelViewProjectionMatrix * position;
-  output.fragUV = uv;
-  output.fragPosition = 0.5 * (position + vec4(1.0, 1.0, 1.0, 1.0));
-  return output;
+  @location(0) fragUV: vec2f,
+  @location(1) fragPosition: vec4f
+) -> @location(0) vec4f {
+  let texColor = textureSample(myTexture, mySampler, fragUV * 0.8 + vec2(0.1));
+  let f = select(1.0, 0.0, length(texColor.rgb - vec3(0.5)) < 0.01);
+  return f * texColor + (1.0 - f) * fragPosition;
 }

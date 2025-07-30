@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import { getLogger } from "@logtape/logtape";
+import { getSourceAt, parsePositionFromStacktrace } from "../utils/sourcemap";
 
 const logger = getLogger(["jacket", "program"]);
 
@@ -89,9 +90,36 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     };
     const navProxy = proxify(navigator, proxifyOpts);
     const canvasProxy = proxify(state.canvas!, proxifyOpts);
-    const renderFunc = await module.program(navProxy, canvasProxy, files, {
-      logger: getLogger(["jacket", "user"]),
-    });
+    let renderFunc;
+    const userLogger = getLogger(["jacket", "user"]);
+    try {
+      renderFunc = await module.program(navProxy, canvasProxy, files, {
+        logger: userLogger,
+      });
+    } catch (error) {
+      const err = error as Error;
+      const position = parsePositionFromStacktrace(err.stack!);
+      const origPosition = await getSourceAt(
+        files,
+        parseInt(position.line),
+        parseInt(position.column)
+      );
+      let line, column;
+      let filepath;
+      if (origPosition === undefined) {
+        line = position.line;
+        column = position.column;
+      } else {
+        line = origPosition.line;
+        column = origPosition.column;
+        filepath = origPosition.source;
+      }
+
+      userLogger.error(
+        `${filepath || ""} ${line}:${column}: [${err.name}] ${err.message}`
+      );
+      return;
+    }
 
     isSetup = false;
     if (typeof renderFunc === "function") {
