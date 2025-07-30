@@ -1,4 +1,10 @@
 import {
+  BaseEdge,
+  getSimpleBezierPath,
+  getSmoothStepPath,
+  type EdgeProps,
+} from "@xyflow/react";
+import {
   GiCircuitry,
   GiPerspectiveDiceFour,
   GiTreasureMap,
@@ -23,6 +29,9 @@ import Dagre from "@dagrejs/dagre";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { pruneGraph, toGraph } from "./graph";
 
+const NODE_TYPES = { default: DefaultNode, status: StatusNode };
+const EDGE_TYPES = { animated: AnimatedSVGEdge };
+
 export default function Overview() {
   const program = useProgramStore((state) => state.program);
 
@@ -37,7 +46,8 @@ export default function Overview() {
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      nodeTypes={{ default: DefaultNode, status: StatusNode }}
+      nodeTypes={NODE_TYPES}
+      edgeTypes={EDGE_TYPES}
       colorMode="dark"
     >
       <Background />
@@ -57,7 +67,7 @@ function buildData(program: Program): [Node[], Edge[]] {
       target: edge.target,
       id: `${edge.source}-${edge.target}`,
       label: edge.attributes.callChain,
-      animated: edge.targetAttributes.ephemeral,
+      type: edge.targetAttributes.ephemeral ? "animated" : undefined,
     };
   });
   return [nodes, edges];
@@ -183,5 +193,33 @@ function BaseNode({ children }: JacketProps & { children?: ReactNode }) {
       <Handle position={Position.Top} type="target" />
       <Handle position={Position.Bottom} type="source" />
     </div>
+  );
+}
+
+export function AnimatedSVGEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+}: EdgeProps) {
+  const [edgePath] = getSimpleBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} />
+      <circle r="10" fill="#ff0073">
+        <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
+      </circle>
+    </>
   );
 }

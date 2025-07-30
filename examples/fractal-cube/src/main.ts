@@ -11,12 +11,7 @@ import {
 import basicVertWGSL from "./basic.vert.wgsl?raw";
 import sampleSelfWGSL from "./sampleSelf.frag.wgsl?raw";
 
-export async function program(
-  navigator: Navigator,
-  canvas: HTMLCanvasElement,
-  files,
-  { logger }
-) {
+export async function program({ logger, navigator, context, canvas }) {
   const adapter = await navigator.gpu?.requestAdapter({
     featureLevel: "compatibility",
   });
@@ -26,8 +21,6 @@ export async function program(
   canvas.width = canvas.clientWidth * devicePixelRatio;
   canvas.height = canvas.clientHeight * devicePixelRatio;
   const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
-
-  const context = canvas.getContext("webgpu");
 
   context.configure({
     device,

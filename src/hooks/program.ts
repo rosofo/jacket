@@ -4,7 +4,11 @@ import { useEffect } from "react";
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import { getLogger } from "@logtape/logtape";
-import { getSourceAt, parsePositionFromStacktrace } from "../utils/sourcemap";
+import {
+  getSourceAt,
+  parsePositionFromStacktrace,
+  translateError,
+} from "../utils/sourcemap";
 
 const logger = getLogger(["jacket", "program"]);
 
@@ -89,36 +93,24 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
       context: { id: uuid() },
     };
     const navProxy = proxify(navigator, proxifyOpts);
-    const canvasProxy = proxify(state.canvas!, proxifyOpts);
+    const contextProxy = proxify(state.context!, proxifyOpts);
     let renderFunc;
     const userLogger = getLogger(["jacket", "user"]);
     try {
-      renderFunc = await module.program(navProxy, canvasProxy, files, {
+      renderFunc = await module.program({
+        navigator: navProxy,
+        context: contextProxy,
+        canvas: state.canvas,
+        files,
         logger: userLogger,
       });
     } catch (error) {
-      const err = error as Error;
-      const position = parsePositionFromStacktrace(err.stack!);
-      const origPosition = await getSourceAt(
-        files,
-        parseInt(position.line),
-        parseInt(position.column)
-      );
-      let line, column;
-      let filepath;
-      if (origPosition === undefined) {
-        line = position.line;
-        column = position.column;
-      } else {
-        line = origPosition.line;
-        column = origPosition.column;
-        filepath = origPosition.source;
-      }
+      const { filepath, line, column, err } = translateError(error, files);
 
       userLogger.error(
         `${filepath || ""} ${line}:${column}: [${err.name}] ${err.message}`
       );
-      return;
+      throw error;
     }
 
     isSetup = false;
