@@ -4,10 +4,14 @@ import { ansiColorFormatter, type LogRecord } from "@logtape/logtape";
 import { parse, ansicolor, type RGBValues } from "ansicolor";
 import { VList } from "virtua";
 import { useDiagnostics } from "../hooks/diagnostics";
+import useSettingsStore from "../hooks/settings";
 
 export default function LogPanel() {
+  const settings = useSettingsStore();
   const records = useLogStore((state) => state.records);
   useDiagnostics();
+
+  if (!settings.enable.logPanel) return null;
 
   return (
     <div className="box small far logs ">

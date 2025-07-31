@@ -36,8 +36,6 @@ type ProgramStore = {
   setPlaying: (fn: (current: boolean) => boolean) => void;
 };
 
-const seen = [];
-
 export const useProgramStore = create<ProgramStore>((set, get) => ({
   program: [],
   renderFunc: null,
@@ -139,14 +137,10 @@ export function createProxifyOpts(
 
       const trace = captureTrace();
       const position = parsePositionFromStacktrace(trace.stack);
-      console.log(position);
       const id = genId(
         String(rawValue) + `${position?.line}:${position?.column}`,
         parentId
       );
-      if (seen.length > 0) {
-        seen.slice(-1)[0].add(id);
-      }
       const newCtx = {
         id,
         parentId,
@@ -183,7 +177,6 @@ export function useRenderLoop() {
     if (playing && renderFunc !== null) {
       let cancelled = false;
       const animate = () => {
-        seen.push(new Set());
         renderFunc();
 
         if (!cancelled) requestAnimationFrame(animate);

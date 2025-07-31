@@ -16,25 +16,22 @@ function App() {
   useEffect(() => {
     logger.info("jacket and shades, so cool.");
   }, []);
-  const settings = useSettingsStore();
   return (
     <div>
       <div className="layout">
         <div className="box">
           <Controls />
-          {settings.enable.canvasPanel && <Canvas />}
+          <Canvas />
         </div>
         <div className="box">
-          {settings.enable.graphPanel && (
-            <ReactFlowProvider>
-              <Overview />
-            </ReactFlowProvider>
-          )}
+          <ReactFlowProvider>
+            <Overview />
+          </ReactFlowProvider>
         </div>
-        <div className="box small far scroll">
-          {settings.enable.filePanel && <Files />}
-        </div>
-        {settings.enable.logPanel && <LogPanel />}
+
+        <FilePanel />
+
+        <LogPanel />
       </div>
       <Settings />
     </div>
@@ -72,4 +69,9 @@ function Controls() {
       </button>
     </div>
   );
+}
+
+function FilePanel() {
+  const filePanel = useSettingsStore((state) => state.enable.filePanel);
+  return <div className="box small far scroll">{filePanel && <Files />}</div>;
 }

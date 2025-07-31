@@ -37,7 +37,8 @@ footer {
   max-inline-size: none;
 }
 
-.box {
+.box,
+button {
   padding: var(--s0);
   background-color: hsl(from var(--color-dark) h s calc(l + var(--contrast)));
 
@@ -52,6 +53,15 @@ footer {
       hsl(from var(--color-border) h s calc(l + 2 * var(--contrast))),
     inset 3px 3px
       hsl(from var(--color-border) h s calc(l + 2 * var(--contrast)));
+}
+button {
+  background-color: hsl(
+    from var(--color-dark) h s calc(l + 1.2 * var(--contrast))
+  );
+  padding: var(--s-2) var(--s-1);
+}
+button:hover {
+  --contrast: 4;
 }
 
 .box * {

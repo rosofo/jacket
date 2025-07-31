@@ -1,7 +1,7 @@
 import {
+  applyEdgeChanges,
   BaseEdge,
   getSimpleBezierPath,
-  getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react";
 import {
@@ -26,14 +26,47 @@ import {
   type ProgramItem,
 } from "../hooks/program";
 import Dagre from "@dagrejs/dagre";
-import { useEffect, useMemo, type ReactNode } from "react";
+import React, { useCallback, useMemo, type ReactNode } from "react";
 import { pruneGraph, toGraph } from "./graph";
+import { useShallow } from "zustand/react/shallow";
+
+const DefaultNode = React.memo((props: JacketProps) => {
+  return <BaseNode {...props}>{props.data.label}</BaseNode>;
+});
+
+const StatusNode = React.memo((props: JacketProps<BaseData & StatusData>) => {
+  return (
+    <div className="cluster">
+      <BaseNode {...props}>
+        {props.data.label}
+        <div className="outside-right stack">
+          {props.data.statuses.map((status, i) => (
+            <div key={i} className="small">
+              {status.node}
+            </div>
+          ))}
+        </div>
+      </BaseNode>
+    </div>
+  );
+});
+
+const BaseNode = ({ children }: JacketProps & { children?: ReactNode }) => {
+  return (
+    <div className="box small relative">
+      {children}
+      <Handle position={Position.Top} type="target" />
+      <Handle position={Position.Bottom} type="source" />
+    </div>
+  );
+};
 
 const NODE_TYPES = { default: DefaultNode, status: StatusNode };
 const EDGE_TYPES = { animated: AnimatedSVGEdge };
 
+const selector = (state) => state.program;
 export default function Overview() {
-  const program = useProgramStore((state) => state.program);
+  const program = useProgramStore(useShallow(selector));
 
   const [nodes, edges] = useMemo(() => {
     const [nodes, edges] = buildData(program);
@@ -42,6 +75,15 @@ export default function Overview() {
     return [[...layouted.nodes], [...layouted.edges]];
   }, [program]);
 
+  const { setEdges } = useReactFlow();
+  const onEdgesChange = useCallback(
+    (changes) => {
+      console.log(changes);
+      setEdges((oldEdges) => applyEdgeChanges(changes, oldEdges));
+    },
+    [setEdges]
+  );
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -49,6 +91,7 @@ export default function Overview() {
       nodeTypes={NODE_TYPES}
       edgeTypes={EDGE_TYPES}
       colorMode="dark"
+      onEdgesChange={onEdgesChange}
     >
       <Background />
     </ReactFlow>
@@ -163,37 +206,6 @@ function buildNode(
     position: { x: 0, y: 0 },
     type,
   };
-}
-
-function DefaultNode(props: JacketProps) {
-  return <BaseNode {...props}>{props.data.label}</BaseNode>;
-}
-
-function StatusNode(props: JacketProps<BaseData & StatusData>) {
-  return (
-    <div className="cluster">
-      <BaseNode {...props}>
-        {props.data.label}
-        <div className="outside-right stack">
-          {props.data.statuses.map((status, i) => (
-            <div key={i} className="small">
-              {status.node}
-            </div>
-          ))}
-        </div>
-      </BaseNode>
-    </div>
-  );
-}
-
-function BaseNode({ children }: JacketProps & { children?: ReactNode }) {
-  return (
-    <div className="box small relative">
-      {children}
-      <Handle position={Position.Top} type="target" />
-      <Handle position={Position.Bottom} type="source" />
-    </div>
-  );
 }
 
 export function AnimatedSVGEdge({
