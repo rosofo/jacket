@@ -208,7 +208,7 @@ function buildNode(
   };
 }
 
-export function AnimatedSVGEdge({
+function AnimatedSVGEdge({
   id,
   sourceX,
   sourceY,

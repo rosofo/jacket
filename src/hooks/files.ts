@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../storage/db";
 import { create } from "zustand/react";
 import { getLogger } from "@logtape/logtape";
+import { useStoreHandle } from "./file-handles";
 
 const logger = getLogger(["jacket", "files"]);
 
@@ -18,13 +17,7 @@ const useFileStatus = create<{
 }));
 
 function useHandle(name: string) {
-  const handle = useLiveQuery(() => db.handles.get(name));
-  const setHandle = useCallback(
-    (handle: FileSystemDirectoryHandle) => {
-      db.handles.add({ name, handle });
-    },
-    [name]
-  );
+  const [handle, storeHandle] = useStoreHandle(name);
   const setStatus = useFileStatus((state) => state.setStatus);
   const choose = useCallback(async () => {
     setStatus("loading");
@@ -32,19 +25,22 @@ function useHandle(name: string) {
       mode: "readwrite",
       startIn: "documents",
     });
-    setHandle(dirHandle);
-  }, [setHandle, setStatus]);
-  if (
-    handle !== undefined &&
-    !(handle.handle instanceof FileSystemDirectoryHandle)
-  )
+    storeHandle(dirHandle);
+  }, [storeHandle, setStatus]);
+  if (handle !== null && !(handle instanceof FileSystemDirectoryHandle))
     throw Error("expected directory handle");
-  return [
-    (handle?.handle as FileSystemDirectoryHandle) || null,
-    choose,
-  ] as const;
+  return [(handle as FileSystemDirectoryHandle) || null, choose] as const;
 }
-export function useFiles() {
+
+type UseFilesReturn = {
+  files: Record<string, string>;
+  choose: () => Promise<void>;
+  create: (name: string, text: string) => Promise<void>;
+  path: string;
+  status: Status;
+};
+
+export function useFiles(): UseFilesReturn {
   const [handle, choose] = useHandle("dir");
 
   const files = useObserveDirectory(handle);
