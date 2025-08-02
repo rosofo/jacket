@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build-preview": "vite build",
+    "build-gh": "vite build -c vite.gh-config.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "knip": "knip"
