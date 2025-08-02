@@ -38,7 +38,7 @@ footer {
 }
 
 .box,
-button {
+button:not(.no-box) {
   padding: var(--s0);
   background-color: hsl(from var(--color-dark) h s calc(l + var(--contrast)));
 
@@ -413,14 +413,38 @@ div:has(> .icon.double-flash) {
 .icon[data-status="loaded"] {
   color: var(--color-green);
 }
-.icon[data-status="refetching"] {
-  --color: oklab(from var(--color-green) calc(l + 20%) a calc(b + 0.3));
-  color: var(--color);
+@keyframes refetching {
+  0% {
+    stroke-width: 1px;
+    color: oklab(60% -50% 50%);
+  }
+  5% {
+    stroke-width: 5px;
+    color: oklab(93.535% 0.00092 -0.03083);
+  }
+  10% {
+    stroke-width: 1px;
+    color: oklab(60% -50% 50%);
+  }
 
+  15% {
+    stroke-width: 30px;
+    color: oklab(80.915% 0.0026 -0.08448);
+  }
+  20% {
+    stroke-width: 1px;
+    color: oklab(60% -50% 50%);
+  }
+}
+.icon[data-status="refetching"] {
   * {
     transition: all;
     transition-duration: 200ms;
-    stroke-width: 30%;
+    animation-name: refetching;
+    animation-iteration-count: infinite;
+    animation-duration: 1.5s;
+    animation-timing-function: cubic-bezier(0.15, 1, 0.22, 1);
+    animation-fill-mode: both;
   }
 }
 .icon {
@@ -499,4 +523,25 @@ div:has(> .icon.double-flash) {
   --xy-edge-stroke: hsl(
     from var(--color-light) h s calc(l - 15 * var(--contrast))
   );
+}
+
+.drop-area {
+  position: relative;
+  filter: saturate(1.5);
+  cursor: pointer;
+  transition-property: all;
+  transition-duration: 0.2s;
+
+  * {
+    transition-property: all;
+    transition-duration: 0.2s;
+  }
+}
+.drop-area[data-invalid] {
+  background-color: hsl(from var(--color-red) h 25 20);
+}
+.drop-area[data-dragging] {
+  * {
+    filter: blur(10px);
+  }
 }

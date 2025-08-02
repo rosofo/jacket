@@ -3,13 +3,19 @@ import {
   GiAbstract086,
   GiEmptyChessboard,
   GiCrossedSwords,
+  GiOpenFolder,
 } from "react-icons/gi";
 
 import { sortBy } from "es-toolkit";
 import { useFiles } from "../hooks/files";
-import { useEffect, useMemo, type ReactNode } from "react";
+import React, { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { useProgramStore } from "../hooks/program";
 import { filterObject, pipe } from "rambda";
+import DropArea from "./DropArea";
+import { getLogger } from "@logtape/logtape";
+
+const logger = getLogger(["jacket", "files"]);
+
 const DEFAULT_VERTEX = `@vertex
 fn main(
   @builtin(vertex_index) VertexIndex : u32
@@ -91,7 +97,27 @@ export async function program(navigator, context, files) {
 }`;
 
 export default function Files() {
-  const { files, choose, create, path, status } = useFiles();
+  const { files, choose, create, path, status, setHandle } = useFiles();
+
+  const onDrop = useCallback(
+    async (event: React.DragEvent) => {
+      event.preventDefault();
+      for (const item of event.dataTransfer.items) {
+        const handle = await item.getAsFileSystemHandle();
+        if (handle === null) {
+          logger.error`Couldn't use ${item.kind}.`;
+          continue;
+        }
+        if (handle.kind === "file") {
+          logger.error`Couldn't use individual file '${handle.name}'. Please choose a directory.`;
+          continue;
+        }
+        setHandle(handle as FileSystemDirectoryHandle);
+      }
+    },
+    [setHandle]
+  );
+
   const missingJs = !("main.js" in files);
   const evalProgram = useProgramStore((state) => state.evalProgram);
   useEffect(() => {
@@ -124,15 +150,10 @@ export default function Files() {
       );
       break;
     case "loading":
-      if (Object.keys(files).length > 0) {
-        statusEl = (
-          <GiTriangleTarget data-status="refetching" className="icon" />
-        );
-      } else {
-        statusEl = (
-          <GiAbstract086 className="spin icon" data-status="loading" />
-        );
-      }
+      statusEl = <GiAbstract086 className="spin icon" data-status="loading" />;
+      break;
+    case "reloading":
+      statusEl = <GiTriangleTarget data-status="refetching" className="icon" />;
       break;
     default:
       statusEl = <GiEmptyChessboard data-status="inactive" className="icon" />;
@@ -144,9 +165,12 @@ export default function Files() {
         <div className="stack">
           <h2>&nbsp;</h2>
           <div className="cluster">
-            <button onClick={choose}>
-              {status === null ? "Choose Directory" : `path: ${path}`}
-            </button>
+            <DropArea
+              fallback={<div>Drop Folder / Choose</div>}
+              item={path ? { name: path, icon: <GiOpenFolder /> } : undefined}
+              onDrop={onDrop}
+              onClick={choose}
+            />
             {statusEl}
             {missingJs && <div>missing: main.js</div>}
           </div>

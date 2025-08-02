@@ -1,50 +1,95 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { create } from "zustand/react";
 import { getLogger } from "@logtape/logtape";
-import { usePersistIDB } from "./persist-idb";
+import { useShallow } from "zustand/shallow";
+import { persist } from "zustand/middleware";
+import type { PersistStorage, StorageValue } from "zustand/middleware";
+import type { PersistOptions } from "zustand/middleware";
+import { get, set, del } from "idb-keyval";
 
 const logger = getLogger(["jacket", "files"]);
 
-type Status = null | "no-access" | "loading" | "loaded";
-const useFileStatus = create<{
+type Status = null | "no-access" | "loading" | "loaded" | "reloading";
+type FileStore = {
   status: Status;
-  setStatus: (status: Status) => void;
-}>((set) => ({
-  status: null,
-  setStatus: (status) => {
-    set({ status });
-  },
-}));
+  handle?: FileSystemDirectoryHandle;
+  files: Record<string, string>;
+  setLoading: (handle: FileSystemDirectoryHandle) => void;
+  setLoaded: (files: Record<string, string>) => void;
+  setReloading: () => void;
+  setNoAccess: () => void;
+  reset: () => void;
+};
 
-function useHandle(name: string) {
-  const [handle, storeHandle] = usePersistIDB(name);
-  const setStatus = useFileStatus((state) => state.setStatus);
+class FileStorage implements PersistStorage<Partial<FileStore>> {
+  async getItem(name: string) {
+    return { state: { handle: await get(name) } };
+  }
+
+  setItem(name: string, value: StorageValue<Partial<FileStore>>) {
+    return set(name, value.state.handle);
+  }
+
+  removeItem(name: string) {
+    return del(name);
+  }
+}
+const useFileStore = create<FileStore>()(
+  persist(
+    (set) => ({
+      status: null,
+      files: {},
+      setLoaded: (files) => {
+        set({ status: "loaded", files });
+      },
+      setLoading: (handle) => {
+        set({ status: "loading", handle });
+      },
+      setNoAccess: () => {
+        set({ status: "no-access" });
+      },
+      setReloading: () => {
+        set({ status: "reloading" });
+      },
+      reset: () => {
+        set({ status: null, files: {} });
+      },
+    }),
+    {
+      name: "file-store",
+      partialize: (state) => ({ handle: state.handle }),
+      storage: new FileStorage(),
+    } as PersistOptions<FileStore, Partial<FileStore>>
+  )
+);
+
+function useChooseDir() {
+  const setLoading = useFileStore((state) => state.setLoading);
   const choose = useCallback(async () => {
-    setStatus("loading");
     const dirHandle = await window.showDirectoryPicker({
       mode: "readwrite",
       startIn: "documents",
     });
-    storeHandle(dirHandle);
-  }, [storeHandle, setStatus]);
-  if (handle !== null && !(handle instanceof FileSystemDirectoryHandle))
-    throw Error("expected directory handle");
-  return [(handle as FileSystemDirectoryHandle) || null, choose] as const;
+    setLoading(dirHandle);
+  }, [setLoading]);
+  return choose;
 }
 
 type UseFilesReturn = {
   files: Record<string, string>;
   choose: () => Promise<void>;
+  setHandle: (handle: FileSystemDirectoryHandle) => void;
   create: (name: string, text: string) => Promise<void>;
-  path: string;
+  path?: string;
   status: Status;
 };
 
 export function useFiles(): UseFilesReturn {
-  const [handle, choose] = useHandle("dir");
+  const choose = useChooseDir();
+  useObserveDirectory();
 
-  const files = useObserveDirectory(handle);
-
+  const handle = useFileStore((state) => state.handle);
+  const setHandle = useFileStore((state) => state.setLoading);
   const create = useCallback(
     async (name: string, text: string) => {
       const fileHandle = await handle?.getFileHandle(name, { create: true });
@@ -57,18 +102,33 @@ export function useFiles(): UseFilesReturn {
     [handle]
   );
 
-  const status = useFileStatus((state) => state.status);
+  const status = useFileStore((state) => state.status);
+  const files = useFileStore((state) => state.files);
 
-  return { files, choose, create, path: handle?.name, status };
+  return { files, choose, setHandle, create, path: handle?.name, status };
 }
 
-function useObserveDirectory(handle: FileSystemDirectoryHandle | null) {
-  const setStatus = useFileStatus((state) => state.setStatus);
-  const [files, setFiles] = useState({} as Record<string, string>);
+function useObserveDirectory() {
+  const handle = useFileStore((state) => state.handle);
+  const { setLoaded, setNoAccess, reset, setReloading, setLoading } =
+    useFileStore(
+      useShallow(
+        ({ setLoaded, setNoAccess, reset, setReloading, setLoading }) => ({
+          setLoaded,
+          setNoAccess,
+          reset,
+          setReloading,
+          setLoading,
+        })
+      )
+    );
   const timestamps = useRef({} as Record<string, number>);
   useEffect(() => {
+    if (handle === undefined) return;
+    let cancelled = false;
     const interval = setInterval(() => {
       (async () => {
+        if (cancelled) return;
         if (
           (await handle?.queryPermission({ mode: "readwrite" })) !== "granted"
         ) {
@@ -77,21 +137,21 @@ function useObserveDirectory(handle: FileSystemDirectoryHandle | null) {
               mode: "readwrite",
             });
             if (permission !== "granted") {
-              setStatus("no-access");
+              setNoAccess();
               return;
             }
           } catch (e) {
-            setStatus("no-access");
+            setNoAccess();
             return;
           }
         }
         const entries = handle?.entries();
         if (entries === undefined) {
-          setStatus(null);
+          reset();
           return;
         }
         const files = {} as Record<string, string>;
-        setStatus("loading");
+        setReloading();
         let changed = false;
         for await (const [name, entryHandle] of entries) {
           if (entryHandle instanceof FileSystemFileHandle) {
@@ -107,11 +167,24 @@ function useObserveDirectory(handle: FileSystemDirectoryHandle | null) {
           }
         }
 
-        if (changed) setFiles(files);
-        setStatus("loaded");
+        if (changed) {
+          setLoaded(files);
+        } else {
+          setReloading();
+        }
       })();
     }, 500);
-    return () => clearInterval(interval);
-  }, [setFiles, setStatus, handle, timestamps]);
-  return files;
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [
+    handle,
+    reset,
+    setLoaded,
+    setLoading,
+    setNoAccess,
+    setReloading,
+    timestamps,
+  ]);
 }
