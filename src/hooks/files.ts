@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand/react";
 import { getLogger } from "@logtape/logtape";
-import { useStoreHandle } from "./file-handles";
+import { usePersistIDB } from "./persist-idb";
 
 const logger = getLogger(["jacket", "files"]);
 
@@ -17,7 +17,7 @@ const useFileStatus = create<{
 }));
 
 function useHandle(name: string) {
-  const [handle, storeHandle] = useStoreHandle(name);
+  const [handle, storeHandle] = usePersistIDB(name);
   const setStatus = useFileStatus((state) => state.setStatus);
   const choose = useCallback(async () => {
     setStatus("loading");
