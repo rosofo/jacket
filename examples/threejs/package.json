@@ -1,0 +1,23 @@
+{
+  "name": "threejs-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Robin Forbes",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@types/three": "^0.178.1",
+    "@webgpu/types": "^0.1.64",
+    "three": "^0.179.1",
+    "typescript": "^5.8.3",
+    "wgpu-matrix": "^3.4.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.6"
+  }
+}

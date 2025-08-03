@@ -160,54 +160,41 @@ export default function Files() {
   }
 
   return (
-    <div className="stack">
-      <div className="cluster box small">
-        <div className="stack">
-          <h2>&nbsp;</h2>
-          <div className="cluster">
-            <DropArea
-              fallback={<div>Drop Folder / Choose</div>}
-              item={path ? { name: path, icon: <GiOpenFolder /> } : undefined}
-              onDrop={onDrop}
-              onClick={choose}
-            />
-            {statusEl}
-            {missingJs && <div>missing: main.js</div>}
-          </div>
+    <div className="cluster box small">
+      <DropArea
+        fallback={<div>Drop Folder / Choose</div>}
+        item={path ? { name: path, icon: <GiOpenFolder /> } : undefined}
+        onDrop={onDrop}
+        onClick={choose}
+      />
+      {statusEl}
+      <hr />
+      {missingJs && <div>missing: main.js</div>}
+      <div className="stack">
+        <header className="small">templates</header>
+        <div className="cluster">
+          <button
+            className="slim"
+            disabled={!path}
+            onClick={() => create("main.js", DEFAULT_JS)}
+          >
+            main.js
+          </button>
+          <button
+            className="slim"
+            disabled={!path}
+            onClick={() => create("vertex.wgsl", DEFAULT_VERTEX)}
+          >
+            vertex.wgsl
+          </button>
+          <button
+            className="slim"
+            disabled={!path}
+            onClick={() => create("fragment.wgsl", DEFAULT_FRAGMENT)}
+          >
+            fragment.wgsl
+          </button>
         </div>
-        <div className="stack">
-          <h2>Add Templates</h2>
-          <div className="cluster">
-            <button
-              disabled={!path}
-              onClick={() => create("main.js", DEFAULT_JS)}
-            >
-              main.js
-            </button>
-            <button
-              disabled={!path}
-              onClick={() => create("vertex.wgsl", DEFAULT_VERTEX)}
-            >
-              vertex.wgsl
-            </button>
-            <button
-              disabled={!path}
-              onClick={() => create("fragment.wgsl", DEFAULT_FRAGMENT)}
-            >
-              fragment.wgsl
-            </button>
-          </div>
-        </div>
-      </div>
-      <div aria-label="status" className="scroll">
-        {sortBy(Object.entries(files), [([k]) => k]).map(([name, text]) => {
-          return (
-            <div key={name}>
-              <h3>{name}</h3>
-              <pre>{text}</pre>
-            </div>
-          );
-        })}
       </div>
     </div>
   );

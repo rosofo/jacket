@@ -97,6 +97,7 @@ export default function Overview() {
     </ReactFlow>
   );
 }
+Overview.whyDidYouRender = true;
 
 function buildData(program: Program): [Node[], Edge[]] {
   const graph = toGraph(program);

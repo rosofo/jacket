@@ -63,6 +63,9 @@ button {
 button:hover {
   --contrast: 4;
 }
+button.slim {
+  padding: var(--s-3) var(--s-1);
+}
 
 .box * {
   color: inherit;
@@ -79,7 +82,7 @@ button:hover {
 }
 
 .stack > * + * {
-  margin-block-start: var(--space, 1.5rem);
+  margin-block-start: var(--s-3);
 }
 
 .stack:only-child {
@@ -186,33 +189,6 @@ button:hover {
     min-width: 0.1rem;
     content: "";
     order: 1;
-  }
-}
-
-.editor {
-  width: 100%;
-  height: 50vh;
-  grid-column: 1 / span 2;
-  display: flex;
-  flex-direction: column;
-
-  .monaco-inner {
-    --vscode-editor-background: hsl(
-      from var(--color-dark) h s calc(l - 1 * var(--contrast))
-    );
-  }
-
-  & > div:not(:first-child) {
-    display: flex;
-    flex-direction: column;
-    justify-content: stretch;
-    align-items: stretch;
-    flex-grow: 1;
-
-    & > * {
-      flex-basis: 33%;
-      flex: 1 1;
-    }
   }
 }
 
@@ -419,10 +395,10 @@ div:has(> .icon.double-flash) {
     color: oklab(60% -50% 50%);
   }
   5% {
-    stroke-width: 5px;
-    color: oklab(93.535% 0.00092 -0.03083);
+    stroke-width: 30px;
+    color: oklab(75.81% 0.00183 -0.08311);
   }
-  10% {
+  /* 10% {
     stroke-width: 1px;
     color: oklab(60% -50% 50%);
   }
@@ -430,8 +406,8 @@ div:has(> .icon.double-flash) {
   15% {
     stroke-width: 30px;
     color: oklab(80.915% 0.0026 -0.08448);
-  }
-  20% {
+  } */
+  11% {
     stroke-width: 1px;
     color: oklab(60% -50% 50%);
   }
@@ -442,8 +418,8 @@ div:has(> .icon.double-flash) {
     transition-duration: 200ms;
     animation-name: refetching;
     animation-iteration-count: infinite;
-    animation-duration: 1.5s;
-    animation-timing-function: cubic-bezier(0.15, 1, 0.22, 1);
+    animation-duration: 3s;
+    animation-timing-function: cubic-bezier(0, 1, 0.02, 1);
     animation-fill-mode: both;
   }
 }
@@ -544,4 +520,8 @@ div:has(> .icon.double-flash) {
   * {
     filter: blur(10px);
   }
+}
+
+header.small {
+  font-size: var(--s5);
 }

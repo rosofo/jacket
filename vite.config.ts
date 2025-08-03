@@ -7,7 +7,10 @@ import { VitePWA } from "vite-plugin-pwa";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      jsxImportSource: "@welldone-software/why-did-you-render",
+      jsxRuntime: "automatic",
+    }),
     VitePWA({
       registerType: "autoUpdate",
       devOptions: { enabled: true },

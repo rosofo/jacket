@@ -1,3 +1,12 @@
+import React from "react";
+import whyDidYouRender from "@welldone-software/why-did-you-render";
+
+if (process.env.NODE_ENV === "development") {
+  whyDidYouRender(React, {
+    trackAllPureComponents: true,
+  });
+}
+
 import "@xyflow/react/dist/style.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -13,7 +22,7 @@ function storeSink(record: LogRecord) {
 await configure({
   sinks: { store: storeSink },
   loggers: [
-    { category: "jacket", lowestLevel: "info", sinks: ["store"] },
+    { category: "jacket", lowestLevel: "debug", sinks: ["store"] },
     { category: ["jacket", "user"], lowestLevel: "trace", sinks: ["store"] },
     {
       category: ["jacket", "tracking"],

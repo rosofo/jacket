@@ -1,4 +1,9 @@
-import { proxify, unproxify, type ProxifyOptions } from "../utils/proxify";
+import {
+  getContext,
+  proxify,
+  unproxify,
+  type ProxifyOptions,
+} from "../utils/proxify";
 import { useEffect } from "react";
 import { produce } from "immer";
 import { getLogger } from "@logtape/logtape";
@@ -15,9 +20,10 @@ const logger = getLogger(["jacket", "program"]);
 
 type ItemMeta = {
   parentId?: string;
+  dependencies?: { id: string; untrackedValue?: unknown }[];
   id: string;
   ephemeral?: boolean;
-  callChain: string;
+  callChain?: string;
 };
 type Item = { value: unknown };
 
@@ -52,17 +58,20 @@ export const useProgramStore = createWithEqualityFn<ProgramStore>(
       let isSetup = true;
       const addMaybe = (
         value: unknown,
-        {
-          id,
-          parentId,
-          callChain,
-        }: { id: string; parentId?: string; callChain: string }
+        { id, parentId, dependencies, callChain }: ProgramItemContext
       ) => {
         set(({ program }) => ({
           program: produce((program: Program) => {
             const ephemeral = !isSetup;
 
-            program.push({ ephemeral, id, parentId, value, callChain });
+            program.push({
+              ephemeral,
+              id,
+              parentId,
+              value,
+              callChain,
+              dependencies,
+            });
           })(program),
         }));
       };
@@ -125,34 +134,56 @@ export const useProgramStore = createWithEqualityFn<ProgramStore>(
   }
 );
 
+type ProgramItemContext = Pick<
+  ProgramItem,
+  "id" | "parentId" | "dependencies" | "callChain"
+> & {
+  prevArgs?: unknown[];
+};
+
 export function createProxifyOpts(
-  addMaybe: (
-    value: unknown,
-    {
-      id,
-      parentId,
-      callChain,
-    }: { id: string; parentId?: string; callChain: string }
-  ) => void
-): Partial<ProxifyOptions<{ id: string; parentId?: string }>> {
+  addMaybe: (value: unknown, ctx: ProgramItemContext) => void
+): Partial<ProxifyOptions<ProgramItemContext>> {
+  function genValueId(rawValue: unknown, parentId: string) {
+    const trace = captureTrace();
+    const position = parsePositionFromStacktrace(trace.stack);
+    const id = genId(
+      String(rawValue) + `${position?.line}:${position?.column}`,
+      parentId
+    );
+    return id;
+  }
   return {
     functionExecCallback: (caller, args, func) => {
-      return { value: func(...args.map(unproxify)) };
+      const ctx = caller.getContext() as ProgramItemContext;
+      const rawArgs = args.map(unproxify);
+
+      return {
+        value: func(...rawArgs),
+        context: { ...ctx, prevArgs: args },
+      };
     },
     valueCallback: (caller, rawValue) => {
       if (typeof rawValue === "function" || rawValue instanceof Promise) return;
-      const context = caller.getContext();
+      const context = caller.getContext() as ProgramItemContext;
       const parentId = (context as { id: string }).id;
 
-      const trace = captureTrace();
-      const position = parsePositionFromStacktrace(trace.stack);
-      const id = genId(
-        String(rawValue) + `${position?.line}:${position?.column}`,
-        parentId
-      );
+      const id = genValueId(rawValue, parentId);
+      const deps = context.prevArgs
+        ?.map((value) => {
+          const argCtx = getContext(value) as ProgramItemContext | undefined;
+          if (argCtx?.id !== undefined) {
+            return { id: argCtx.id };
+          } else if (typeof value === "object" && value !== null) {
+            const argId = genValueId(value, "");
+            return { id: argId, untrackedValue: unproxify(value) };
+          }
+        })
+        .filter((value) => value !== undefined);
       const newCtx = {
         id,
         parentId,
+        dependencies: deps,
       };
       addMaybe(rawValue, {
         ...newCtx,

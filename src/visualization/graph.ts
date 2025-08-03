@@ -5,31 +5,62 @@ import { getLogger } from "@logtape/logtape";
 const logger = getLogger(["jacket", "graph"]);
 
 type Graph = g.DirectedGraph<
-  Omit<ProgramItem, "id" | "parentId" | "callChain">,
-  { callChain: string }
+  Omit<ProgramItem, "id" | "parentId" | "dependencies" | "callChain">,
+  { type: "parent"; callChain: string } | { type: "dependency" }
 >;
 
 export function toGraph(program: Program): Graph {
   const graph: Graph = new g.DirectedGraph();
   logger.debug`Building graph from program`;
+  let errors = 0;
+  const tryCountErrors = (callback: () => void) => {
+    try {
+      callback();
+    } catch {
+      errors++;
+    }
+  };
+  const logErrors = (name: string) => {
+    if (errors > 0) logger.debug`Failed to add ${errors} ${name}`;
+    errors = 0;
+  };
   for (const item of program) {
     logger.trace`Add node: ${item}`;
-    graph.addNode(item.id, { value: item.value, ephemeral: item.ephemeral });
+    tryCountErrors(() => {
+      graph.addNode(item.id, {
+        value: item.value,
+        ephemeral: item.ephemeral,
+      });
+    });
   }
-  let errors = 0;
+  logErrors("nodes");
   for (const item of program) {
     if (item.parentId !== undefined)
-      try {
+      tryCountErrors(() => {
         graph.addDirectedEdge(item.parentId, item.id, {
-          callChain: item.callChain,
+          callChain: item.callChain || "",
+          type: "parent",
         });
-      } catch {
-        errors++;
+      });
+  }
+  logErrors("edges");
+  for (const item of program) {
+    if (item.dependencies !== undefined)
+      for (const dep of item.dependencies) {
+        tryCountErrors(() => {
+          if (dep.untrackedValue !== undefined) {
+            graph.addNode(dep.id, {
+              value: dep.untrackedValue,
+              ephemeral: item.ephemeral,
+            });
+          }
+          graph.addDirectedEdge(dep.id, item.id, {
+            type: "dependency",
+          });
+        });
       }
   }
-  if (errors > 0) {
-    logger.debug`Failed to add ${errors} edges`;
-  }
+  logErrors("dependency nodes/edges");
   return graph;
 }
 
