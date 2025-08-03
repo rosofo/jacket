@@ -1,16 +1,15 @@
-import { create } from "zustand/react";
 import { proxify, unproxify, type ProxifyOptions } from "../utils/proxify";
 import { useEffect } from "react";
 import { produce } from "immer";
-import { v4 as uuid } from "uuid";
 import { getLogger } from "@logtape/logtape";
 import {
-  getSourceAt,
   parsePositionFromStacktrace,
   translateError,
 } from "../utils/sourcemap";
 import { genId } from "../utils/id";
 import { useShallow } from "zustand/react/shallow";
+import { createWithEqualityFn } from "zustand/traditional";
+import isDeepEqual from "react-fast-compare";
 
 const logger = getLogger(["jacket", "program"]);
 
@@ -36,85 +35,95 @@ type ProgramStore = {
   setPlaying: (fn: (current: boolean) => boolean) => void;
 };
 
-export const useProgramStore = create<ProgramStore>((set, get) => ({
-  program: [],
-  renderFunc: null,
-  playing: true,
-  setPlaying: (fn) => {
-    set((state) => ({ playing: fn(state.playing) }));
-  },
-  evalProgram: async (js: string, files: Record<string, string>) => {
-    logger.info`Reloading program after change...`;
-    set({ program: [] });
-    const module = await compileModule(js);
-    const state = get();
+export const useProgramStore = createWithEqualityFn<ProgramStore>(
+  (set, get) => ({
+    program: [],
+    renderFunc: null,
+    playing: true,
+    setPlaying: (fn) => {
+      set((state) => ({ playing: fn(state.playing) }));
+    },
+    evalProgram: async (js: string, files: Record<string, string>) => {
+      logger.info`Reloading program after change...`;
+      set({ program: [] });
+      const module = await compileModule(js);
+      const state = get();
 
-    let isSetup = true;
-    const addMaybe = (
-      value: unknown,
-      {
-        id,
-        parentId,
-        callChain,
-      }: { id: string; parentId?: string; callChain: string }
-    ) => {
-      set(({ program }) => ({
-        program: produce((program: Program) => {
-          const ephemeral = !isSetup;
+      let isSetup = true;
+      const addMaybe = (
+        value: unknown,
+        {
+          id,
+          parentId,
+          callChain,
+        }: { id: string; parentId?: string; callChain: string }
+      ) => {
+        set(({ program }) => ({
+          program: produce((program: Program) => {
+            const ephemeral = !isSetup;
 
-          program.push({ ephemeral, id, parentId, value, callChain });
-        })(program),
-      }));
-    };
-    const clearEphemeral = () => {
-      set(({ program }) => ({
-        program: program.filter((item) => !item.ephemeral),
-      }));
-    };
+            program.push({ ephemeral, id, parentId, value, callChain });
+          })(program),
+        }));
+      };
+      const clearEphemeral = () => {
+        set(({ program }) => ({
+          program: program.filter((item) => !item.ephemeral),
+        }));
+      };
 
-    const proxifyOpts: Partial<
-      ProxifyOptions<{ id: string; parentId?: string }>
-    > = createProxifyOpts(addMaybe);
-    const navProxy = proxify(navigator, proxifyOpts);
-    const contextProxy = proxify(state.context!, proxifyOpts);
-    let renderFunc;
-    const userLogger = getLogger(["jacket", "user"]);
-    try {
-      renderFunc = await module.program({
-        navigator: navProxy,
-        context: contextProxy,
-        canvas: state.canvas,
-        files,
-        logger: userLogger,
-      });
-    } catch (error) {
-      const { filepath, line, column, err } = translateError(error, files);
+      const proxifyOpts: Partial<
+        ProxifyOptions<{ id: string; parentId?: string }>
+      > = createProxifyOpts(addMaybe);
+      const navProxy = proxify(navigator, proxifyOpts);
+      const contextProxy = proxify(state.context!, proxifyOpts);
+      let renderFunc;
+      const userLogger = getLogger(["jacket", "user"]);
+      try {
+        renderFunc = await module.program({
+          navigator: navProxy,
+          context: contextProxy,
+          canvas: state.canvas,
+          files,
+          logger: userLogger,
+        });
+      } catch (error) {
+        const { filepath, line, column, err } = translateError(error, files);
 
-      userLogger.error(
-        `${filepath || ""} ${line}:${column}: [${err.name}] ${err.message}`
-      );
-      throw error;
-    }
+        userLogger.error(
+          `${filepath || ""} ${line}:${column}: [${err.name}] ${err.message}`
+        );
+        throw error;
+      }
 
-    isSetup = false;
-    if (typeof renderFunc === "function") {
-      set({
-        renderFunc: () => {
-          clearEphemeral();
-          renderFunc();
-        },
-      });
+      isSetup = false;
+      if (typeof renderFunc === "function") {
+        set({
+          renderFunc: () => {
+            clearEphemeral();
+            renderFunc();
+          },
+        });
+      } else {
+        set({ renderFunc: null });
+      }
+    },
+    canvas: null,
+    context: null,
+    setCanvas: (canvas: HTMLCanvasElement) => {
+      const context = canvas.getContext("webgpu");
+      set({ canvas, context });
+    },
+  }),
+  (a, b) => {
+    if (a instanceof Array) {
+      // the `program` array is recreated every frame, so we do this to prevent unnecessary rerenders
+      return isDeepEqual(a, b);
     } else {
-      set({ renderFunc: null });
+      return Object.is(a, b);
     }
-  },
-  canvas: null,
-  context: null,
-  setCanvas: (canvas: HTMLCanvasElement) => {
-    const context = canvas.getContext("webgpu");
-    set({ canvas, context });
-  },
-}));
+  }
+);
 
 export function createProxifyOpts(
   addMaybe: (
