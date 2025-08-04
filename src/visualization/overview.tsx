@@ -7,6 +7,9 @@ import {
 } from "@xyflow/react";
 import {
   GiCircuitry,
+  GiDatabase,
+  GiJumpAcross,
+  GiPencilRuler,
   GiPerspectiveDiceFour,
   GiTreasureMap,
 } from "react-icons/gi";
@@ -30,6 +33,7 @@ import Dagre from "@dagrejs/dagre";
 import React, { useCallback, useMemo, type ReactNode } from "react";
 import { pruneGraph, toGraph } from "./graph";
 import { useShallow } from "zustand/react/shallow";
+import { dropRightWhile, takeRightWhile } from "es-toolkit";
 
 const DefaultNode = React.memo((props: JacketProps) => {
   return <BaseNode {...props}>{props.data.label}</BaseNode>;
@@ -112,7 +116,10 @@ function buildData(program: Program): [Node[], Edge[]] {
       id: `${edge.source}-${edge.target}`,
       label:
         edge.attributes.type === "parent"
-          ? edge.attributes.callChain
+          ? dropRightWhile(
+              edge.attributes.callChain.split("."),
+              (part) => part === "()" || part.startsWith("__")
+            ).slice(-1)[0]
           : "dependency",
       animated: edge.targetAttributes.ephemeral,
       markerEnd: "arrow",
@@ -165,11 +172,44 @@ function buildNode(
   attributes: Omit<ProgramItem, "id" | "parentId" | "dependencies">
 ) {
   let type = "basic";
+  const info = valueInfo(attributes.value);
   const data: BaseData & Record<string, unknown> = {
-    label: valueLabel(attributes.value),
+    label: "label" in info ? `${info.label} (${info.name})` : info.name,
     ephemeral: attributes.ephemeral,
   };
-  if (attributes.value instanceof GPUDevice) {
+  if ("length" in info) {
+    type = "status";
+    data.statuses = [
+      {
+        node: (
+          <div className="cluster small">
+            <GiPencilRuler />
+            {`length: ${info.length}`}
+          </div>
+        ),
+      },
+    ];
+    if ("bytes" in info) {
+      data.statuses.push(
+        {
+          node: (
+            <div className="cluster small">
+              <GiDatabase />
+              {`bytes: ${info.bytes}`}
+            </div>
+          ),
+        },
+        {
+          node: (
+            <div className="cluster small">
+              <GiJumpAcross />
+              {`offset: ${info.offset}`}
+            </div>
+          ),
+        }
+      );
+    }
+  } else if (attributes.value instanceof GPUDevice) {
     type = "status";
     data.statuses = [
       {
@@ -210,23 +250,37 @@ function buildNode(
   };
 }
 
-const RawValueLabel = z.union([
-  z.object({ name: z.string().nonempty() }).transform((v) => v.name),
-  z.object({ label: z.string().nonempty() }).transform((v) => v.label),
-  z.array(z.unknown()).transform((v) => `array (${v.length})`),
-  z
-    .record(z.string(), z.union([z.number(), z.string()]))
-    .transform((v) => `object: ${Object.keys(v).join(" ")}`),
-]);
+const ValueInfo = z.intersection(
+  z.union([
+    z
+      .array(z.any())
+      .transform((v) => ({ name: "array" as const, length: v.length })),
+    z.instanceof(Float32Array).transform((v) => ({
+      name: "Float32Array" as const,
+      length: v.length,
+      bytes: v.byteLength,
+      offset: v.byteOffset,
+    })),
+    z
+      .object({ name: z.string().nonempty() })
+      .transform((v) => ({ name: v.name })),
+    z
+      .record(z.string(), z.union([z.number(), z.string()]))
+      .transform((v) => ({ name: "object" as const, fields: v })),
+  ]),
+  z.object({ label: z.optional(z.string().nonempty()) })
+);
+type ValueInfo = z.infer<typeof ValueInfo> | { name: string };
 
-function valueLabel(value: unknown): string {
+function valueInfo(value: unknown): ValueInfo {
   try {
     const constructorName = value?.constructor?.name;
-    return constructorName !== undefined && constructorName !== "Object"
-      ? constructorName
-      : RawValueLabel.parse(value);
+    return constructorName !== undefined &&
+      !constructorName.match(/(Object|.*?Array(Buffer)?)/)
+      ? { name: constructorName }
+      : ValueInfo.parse(value);
   } catch {
-    return String(value);
+    return { name: String(value) };
   }
 }
 
