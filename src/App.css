@@ -19,6 +19,7 @@
   --color-green: oklab(60% -50% 50%);
   --color-red: oklab(51.902% 0.18588 0.10399);
   --color-purple: oklab(39.415% 0.1566 -0.07404);
+  --color-blue: oklab(65.83% 0.04769 -0.11698);
   --contrast: 2.5;
 
   background-color: var(--color-dark);

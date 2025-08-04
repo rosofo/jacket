@@ -3,6 +3,7 @@ import {
   applyEdgeChanges,
   BaseEdge,
   getSimpleBezierPath,
+  MarkerType,
   type EdgeProps,
 } from "@xyflow/react";
 import {
@@ -122,7 +123,12 @@ function buildData(program: Program): [Node[], Edge[]] {
             ).slice(-1)[0]
           : "dependency",
       animated: edge.targetAttributes.ephemeral,
-      markerEnd: "arrow",
+      markerEnd:
+        edge.attributes.type === "dependency" ? MarkerType.Arrow : undefined,
+      style:
+        edge.attributes.type === "parent"
+          ? { stroke: "var(--color-blue)" }
+          : undefined,
     };
   });
   return [nodes, edges];
