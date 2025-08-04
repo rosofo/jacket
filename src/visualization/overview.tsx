@@ -1,3 +1,4 @@
+import { z } from "zod/v4";
 import {
   applyEdgeChanges,
   BaseEdge,
@@ -97,7 +98,6 @@ export default function Overview() {
     </ReactFlow>
   );
 }
-Overview.whyDidYouRender = true;
 
 function buildData(program: Program): [Node[], Edge[]] {
   const graph = toGraph(program);
@@ -166,10 +166,7 @@ function buildNode(
 ) {
   let type = "basic";
   const data: BaseData & Record<string, unknown> = {
-    label:
-      attributes.value?.constructor?.name ||
-      attributes.value?.toString() ||
-      `${attributes.value}`,
+    label: valueLabel(attributes.value),
     ephemeral: attributes.ephemeral,
   };
   if (attributes.value instanceof GPUDevice) {
@@ -211,6 +208,26 @@ function buildNode(
     position: { x: 0, y: 0 },
     type,
   };
+}
+
+const RawValueLabel = z.union([
+  z.object({ name: z.string().nonempty() }).transform((v) => v.name),
+  z.object({ label: z.string().nonempty() }).transform((v) => v.label),
+  z.array(z.unknown()).transform((v) => `array (${v.length})`),
+  z
+    .record(z.string(), z.union([z.number(), z.string()]))
+    .transform((v) => `object: ${Object.keys(v).join(" ")}`),
+]);
+
+function valueLabel(value: unknown): string {
+  try {
+    const constructorName = value?.constructor?.name;
+    return constructorName !== undefined && constructorName !== "Object"
+      ? constructorName
+      : RawValueLabel.parse(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function AnimatedSVGEdge({
