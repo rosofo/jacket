@@ -1,12 +1,3 @@
-import React from "react";
-import whyDidYouRender from "@welldone-software/why-did-you-render";
-
-if (process.env.NODE_ENV === "development") {
-  whyDidYouRender(React, {
-    trackAllPureComponents: true,
-  });
-}
-
 import "@xyflow/react/dist/style.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
