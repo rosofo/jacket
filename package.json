@@ -16,6 +16,7 @@
   "dependencies": {
     "@dagrejs/dagre": "^1.1.5",
     "@logtape/logtape": "^1.0.4",
+    "@lume/kiwi": "^0.4.4",
     "@types/wicg-file-system-access": "^2023.10.6",
     "@xyflow/react": "^12.8.1",
     "ansicolor": "^2.0.3",

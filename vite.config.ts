@@ -32,7 +32,7 @@ export default defineConfig({
         test: {
           // an example of file based convention,
           // you don't have to follow it
-          include: ["**/*.{test,spec}.ts", "**/*.{test,spec}.browser.ts"],
+          include: ["**/*.{test,spec}.browser.ts"],
           name: "browser",
           browser: {
             enabled: true,

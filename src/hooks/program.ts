@@ -5,7 +5,6 @@ import {
   type ProxifyOptions,
 } from "../utils/proxify";
 import { useEffect } from "react";
-import { produce } from "immer";
 import { getLogger } from "@logtape/logtape";
 import {
   parsePositionFromStacktrace,
@@ -60,20 +59,22 @@ export const useProgramStore = createWithEqualityFn<ProgramStore>(
         value: unknown,
         { id, parentId, dependencies, callChain }: ProgramItemContext
       ) => {
-        set(({ program }) => ({
-          program: produce((program: Program) => {
-            const ephemeral = !isSetup;
-
-            program.push({
-              ephemeral,
-              id,
-              parentId,
-              value,
-              callChain,
-              dependencies,
-            });
-          })(program),
-        }));
+        set(({ program }) => {
+          const ephemeral = !isSetup;
+          return {
+            program: [
+              ...program,
+              {
+                ephemeral,
+                id,
+                parentId,
+                value,
+                callChain,
+                dependencies,
+              },
+            ],
+          };
+        });
       };
       const clearEphemeral = () => {
         set(({ program }) => ({

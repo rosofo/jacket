@@ -4,10 +4,21 @@ import { getLogger } from "@logtape/logtape";
 
 const logger = getLogger(["jacket", "graph"]);
 
-type Graph = g.DirectedGraph<
-  Omit<ProgramItem, "id" | "parentId" | "dependencies" | "callChain">,
-  { type: "parent"; callChain: string } | { type: "dependency" }
+export type NodeWeight = Omit<
+  ProgramItem,
+  "id" | "parentId" | "dependencies" | "callChain"
 >;
+
+export type EdgeWeight =
+  | {
+      type: "parent";
+      callChain: string;
+    }
+  | {
+      type: "dependency";
+    };
+
+export type Graph = g.DirectedGraph<NodeWeight, EdgeWeight>;
 
 export function toGraph(program: Program): Graph {
   const graph: Graph = new g.DirectedGraph();
@@ -54,7 +65,7 @@ export function toGraph(program: Program): Graph {
               ephemeral: item.ephemeral,
             });
           }
-          graph.addDirectedEdge(dep.id, item.id, {
+          graph.addDirectedEdge(item.id, dep.id, {
             type: "dependency",
           });
         });

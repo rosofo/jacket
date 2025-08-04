@@ -61,7 +61,7 @@ const BaseNode = ({ children }: JacketProps & { children?: ReactNode }) => {
   );
 };
 
-const NODE_TYPES = { default: DefaultNode, status: StatusNode };
+const NODE_TYPES = { basic: DefaultNode, status: StatusNode };
 const EDGE_TYPES = { animated: AnimatedSVGEdge };
 
 const selector = (state) => state.program;
@@ -105,13 +105,17 @@ function buildData(program: Program): [Node[], Edge[]] {
   const nodes = Array.from(graph.nodeEntries()).map(({ node, attributes }) =>
     buildNode(node, attributes)
   );
-  const edges: Edge[] = Array.from(graph.edgeEntries()).map((edge) => {
+  const edges: Edge[] = Array.from(graph.edgeEntries()).map((edge): Edge => {
     return {
       source: edge.source,
       target: edge.target,
       id: `${edge.source}-${edge.target}`,
-      label: edge.attributes.callChain,
+      label:
+        edge.attributes.type === "parent"
+          ? edge.attributes.callChain
+          : "dependency",
       animated: edge.targetAttributes.ephemeral,
+      markerEnd: "arrow",
     };
   });
   return [nodes, edges];
@@ -158,9 +162,9 @@ type JacketProps<T extends Record<string, unknown> = BaseData> = NodeProps<
 
 function buildNode(
   node: string,
-  attributes: Omit<ProgramItem, "id" | "parentId" | "callChain">
+  attributes: Omit<ProgramItem, "id" | "parentId" | "dependencies">
 ) {
-  let type = "default";
+  let type = "basic";
   const data: BaseData & Record<string, unknown> = {
     label:
       attributes.value?.constructor?.name ||
