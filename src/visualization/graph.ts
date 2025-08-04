@@ -76,19 +76,18 @@ export function toGraph(program: Program): Graph {
 }
 
 export function pruneGraph(graph: Graph) {
-  const entries = Array.from(graph.nodeEntries());
-  for (const node of entries) {
-    if (shouldPrune(node.attributes.value)) {
-      const inNodes = graph.inNeighbors(node.node);
-      const outNodes = graph.outNeighbors(node.node);
+  graph.forEachNode((node, attrs) => {
+    if (shouldPrune(attrs.value)) {
+      const inNodes = graph.inNeighbors(node);
+      const outNodes = graph.outNeighbors(node);
       for (const inNode of inNodes) {
         for (const outNode of outNodes) {
           graph.addDirectedEdge(inNode, outNode);
         }
       }
-      graph.dropNode(node.node);
+      graph.dropNode(node);
     }
-  }
+  });
 }
 function shouldPrune(value: unknown) {
   return (
