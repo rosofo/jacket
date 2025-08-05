@@ -28,6 +28,7 @@
   max-inline-size: var(--measure);
 }
 
+svg,
 html,
 body,
 div,
