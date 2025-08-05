@@ -14,6 +14,7 @@ type FileStore = {
   status: Status;
   handle?: FileSystemDirectoryHandle;
   files: Record<string, string>;
+  observeLocal: boolean;
   setLoading: (handle: FileSystemDirectoryHandle) => void;
   setLoaded: (files: Record<string, string>) => void;
   setReloading: () => void;
@@ -39,6 +40,7 @@ const useFileStore = create<FileStore>()(
     (set) => ({
       status: null,
       files: {},
+      observeLocal: true,
       setLoaded: (files) => {
         set({ status: "loaded", files });
       },
@@ -84,6 +86,16 @@ type UseFilesReturn = {
   status: Status;
 };
 
+export function useStaticFiles(files: Record<string, string>) {
+  useEffect(() => {
+    useFileStore.setState({ files, observeLocal: false });
+
+    return () => {
+      useFileStore.setState({ observeLocal: true });
+    };
+  }, [files]);
+}
+
 export function useFiles(): UseFilesReturn {
   const choose = useChooseDir();
   useObserveDirectory();
@@ -110,21 +122,35 @@ export function useFiles(): UseFilesReturn {
 
 function useObserveDirectory() {
   const handle = useFileStore((state) => state.handle);
-  const { setLoaded, setNoAccess, reset, setReloading, setLoading } =
-    useFileStore(
-      useShallow(
-        ({ setLoaded, setNoAccess, reset, setReloading, setLoading }) => ({
-          setLoaded,
-          setNoAccess,
-          reset,
-          setReloading,
-          setLoading,
-        })
-      )
-    );
+  const {
+    setLoaded,
+    setNoAccess,
+    reset,
+    setReloading,
+    setLoading,
+    observeLocal,
+  } = useFileStore(
+    useShallow(
+      ({
+        setLoaded,
+        setNoAccess,
+        reset,
+        setReloading,
+        setLoading,
+        observeLocal,
+      }) => ({
+        setLoaded,
+        setNoAccess,
+        reset,
+        setReloading,
+        setLoading,
+        observeLocal,
+      })
+    )
+  );
   const timestamps = useRef({} as Record<string, number>);
   useEffect(() => {
-    if (handle === undefined) return;
+    if (!observeLocal || handle === undefined) return;
     let cancelled = false;
     const interval = setInterval(() => {
       (async () => {
@@ -186,5 +212,6 @@ function useObserveDirectory() {
     setNoAccess,
     setReloading,
     timestamps,
+    observeLocal,
   ]);
 }
