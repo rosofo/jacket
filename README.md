@@ -38,13 +38,38 @@ Just clone this repo and run `npm i` then `npm run dev` or `npm run build; npm r
 
 ## Under the hood
 
-Jacket is essentially a pipeline with the following components:
+Jacket can be boiled down to a pipeline with the following components:
 
 - A folder watcher which uses the [File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API) to gain continuous access to a local folder. The handle is saved in IndexedDB and reused on page reload.
 - An executor which takes the code, turns it into a JS module and calls `module.program` with the parameters. The `navigator` and canvas are wrapped in a Proxy which is able to track method calls, produced values, etc. The tracked values are given IDs and have their relationships encoded using those IDs. Everything gets stored in a flat array for further processing.
 - The visualizer, which turns the flat array into a graph, does some pruning to get rid of nulls and primitives and displays it all in a [React Flow](https://reactflow.dev/) component.
 
+### Tracking Values
+
+As the user's code runs, it produces values of arbitrary kinds, passes them around and consumes them. Jacket's job is to observe this process and visualize it, hopefully without requiring too many changes by the user. There are many possible options for programmatically observing code without prior knowledge but a popular one makes use of a [Proxy](developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) which wraps the underlying values. Proxies are great because they can be made transparent to the user's code while allowing us to hook into property access. They're also tricky to use and can lead to many subtle bugs. If you use vanilla Proxies be assured you will meet all the seediest 'features' of Javascript.
+
+> An option not explored here is static analysis, i.e. parsing the source without running it and trying to infer something about its semantics. Jacket doesn't do this because it's hard and we can avoid it for our use-case.
+
+Anyway, after the initial bug squashing, our proxies look like this:
+
+- We wrap a pre-existing `HTMLCanvasElement` and the built-in `navigator` in our proxy
+- The proxies are passed to the user's code
+- Wherever a proxy's properties are accessed, we track the event, then take the underlying values and wrap *those* in a proxy too. The same happens with the results of method calls and promises. Examples:
+  - `navigator.gpu`
+    - **logs** a property access
+    - **evaluates** to `Proxy(GPU)`
+  - `gpu.requestAdapter(...)`
+    - **logs** a property access, a method call and a promise resolution
+    - **evaluates** to a promise which resolves to `Proxy(GPUAdapter)`
+- The proxies spread out tree-like, wrapping buffers, pipelines, encoders, etc
+
+
+
 ## Todos
 
 - Expose more information
 - Improve performance & stability
+
+## Thanks
+
+@mini-ninja-64 for her awesome library `proxify` (should see a proper release soonTM)
