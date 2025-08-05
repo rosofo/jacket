@@ -45,6 +45,8 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
     callChain: currentCaller,
   };
 
+  let returnRaw = valueCallbackReturn?.returnRaw;
+
   if (normalisedValue instanceof Promise) {
     const promise = new Promise((resolve, reject) => {
       normalisedValue
@@ -84,6 +86,7 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
         actualArgs,
         actualFunction
       );
+      returnRaw = functionExeccallbackReturn?.returnRaw;
       if (functionExeccallbackReturn?.context !== undefined) {
         currentCaller = withContext(
           currentCaller,
@@ -104,6 +107,10 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
     Tracking.trackProxy(f, state);
     return f;
   } else if (normalisedValue instanceof Object) {
+    if (returnRaw) {
+      return normalisedValue;
+    }
+
     const p = new Proxy(normalisedValue, handler(currentCaller, options));
     Tracking.trackProxy(p, state);
     return p;
@@ -138,6 +145,7 @@ function handler<C extends object>(
 type ProxifyReturn<C> = {
   value?: unknown;
   context?: C;
+  returnRaw?: boolean;
 } | void;
 
 export interface ProxifyOptions<C> {
