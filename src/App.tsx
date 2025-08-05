@@ -9,6 +9,7 @@ import { getLogger } from "@logtape/logtape";
 import useSettingsStore from "./hooks/settings";
 import Settings from "./components/Settings";
 import { GiPauseButton, GiPlayButton } from "react-icons/gi";
+import FeatureWarning from "./components/FeatureWarning";
 
 const logger = getLogger(["jacket"]);
 
@@ -34,6 +35,7 @@ function App() {
         <LogPanel />
       </div>
       <Settings />
+      <FeatureWarning />
     </div>
   );
 }

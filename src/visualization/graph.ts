@@ -65,7 +65,7 @@ export function toGraph(program: Program): Graph {
               ephemeral: item.ephemeral,
             });
           }
-          graph.addDirectedEdge(item.id, dep.id, {
+          graph.addDirectedEdge(dep.id, item.id, {
             type: "dependency",
           });
         });

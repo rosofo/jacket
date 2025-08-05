@@ -19,6 +19,7 @@
     "@lume/kiwi": "^0.4.4",
     "@types/wicg-file-system-access": "^2023.10.6",
     "@xyflow/react": "^12.8.1",
+    "animejs": "^4.1.2",
     "ansicolor": "^2.0.3",
     "es-toolkit": "^1.39.7",
     "graphology": "^0.26.0",
