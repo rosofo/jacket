@@ -11,7 +11,9 @@
     "build-gh": "vite build -c vite.gh-config.ts",
     "lint": "eslint .",
     "preview": "vite preview",
-    "knip": "knip"
+    "knip": "knip",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.5",
@@ -39,7 +41,13 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "^4.1.0",
     "@eslint/js": "^9.29.0",
+    "@storybook/addon-a11y": "^9.1.1",
+    "@storybook/addon-docs": "^9.1.1",
+    "@storybook/addon-onboarding": "^9.1.1",
+    "@storybook/addon-vitest": "^9.1.1",
+    "@storybook/react-vite": "^9.1.1",
     "@types/node": "^24.1.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
@@ -52,15 +60,19 @@
     "eslint-plugin-depend": "^1.2.0",
     "eslint-plugin-react-hooks": "^6.0.0-rc.1",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "eslint-plugin-storybook": "^9.1.1",
     "fast-check": "^4.2.0",
     "globals": "^16.2.0",
     "jsdom": "^26.1.0",
     "knip": "^5.62.0",
+    "storybook": "^9.1.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^7.0.0",
     "vite-plugin-pwa": "^1.0.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "playwright": "^1.54.2",
+    "@vitest/coverage-v8": "3.2.4"
   },
   "workspaces": [
     "examples/fractal-cube"

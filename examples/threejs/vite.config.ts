@@ -8,5 +8,6 @@ export default defineConfig({
       fileName: "main",
     },
     sourcemap: true,
+    minify: false,
   },
 });

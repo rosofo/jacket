@@ -17,15 +17,7 @@ import WebGPU from "three/addons/capabilities/WebGPU.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 export async function program({ logger, navigator, context, canvas }) {
-  if (WebGPU.isAvailable() === false) {
-    document.body.appendChild(WebGPU.getErrorMessage());
-
-    throw new Error("No WebGPU support");
-  }
-
-  const { innerWidth, innerHeight } = window;
-
-  camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 5000);
+  camera = new THREE.PerspectiveCamera(60, 1.5, 1, 5000);
   camera.position.set(1300, 500, 0);
 
   scene = new THREE.Scene();
@@ -147,7 +139,7 @@ export async function program({ logger, navigator, context, canvas }) {
 
   //
 
-  controls = new OrbitControls(camera, renderer.domElement);
+  controls = new OrbitControls(camera, canvas);
   controls.maxDistance = 2700;
   controls.target.set(0, 500, 0);
   controls.update();

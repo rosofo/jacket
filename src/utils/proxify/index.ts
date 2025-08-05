@@ -28,7 +28,8 @@ interface JsProxyProperties<T extends object, K extends keyof T> {
 function proxifyValue<T extends object, K extends keyof T, C extends object>(
   { value, receiver, target }: JsProxyProperties<T, K>,
   currentCaller: CallChain,
-  options: ProxifyOptions<C>
+  options: ProxifyOptions<C>,
+  returnRaw?: boolean
 ) {
   const valueCallbackReturn = options.valueCallback(currentCaller, value);
   const normalisedValue =
@@ -38,14 +39,13 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   if (valueCallbackReturn?.context !== undefined) {
     currentCaller = withContext(currentCaller, valueCallbackReturn.context);
   }
+  returnRaw = valueCallbackReturn?.returnRaw || returnRaw;
 
   const state: ProxifyState = {
     rawValue: normalisedValue,
     valueCallbackResult: valueCallbackReturn,
     callChain: currentCaller,
   };
-
-  let returnRaw = valueCallbackReturn?.returnRaw;
 
   if (normalisedValue instanceof Promise) {
     const promise = new Promise((resolve, reject) => {
@@ -55,7 +55,8 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
             proxifyValue(
               { value: resolvedValue, receiver, target },
               currentCaller.extend({ type: "resolved" }),
-              options
+              options,
+              returnRaw
             )
           );
         })
@@ -64,7 +65,8 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
             proxifyValue(
               { value: rejectedValue, receiver, target },
               currentCaller.extend({ type: "rejected" }),
-              options
+              options,
+              returnRaw
             )
           );
         });
@@ -86,7 +88,7 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
         actualArgs,
         actualFunction
       );
-      returnRaw = functionExeccallbackReturn?.returnRaw;
+      returnRaw = functionExeccallbackReturn?.returnRaw || returnRaw;
       if (functionExeccallbackReturn?.context !== undefined) {
         currentCaller = withContext(
           currentCaller,
@@ -100,7 +102,8 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
       const p = proxifyValue(
         { value: result, receiver, target },
         currentCaller,
-        options
+        options,
+        returnRaw
       );
       return p;
     };
