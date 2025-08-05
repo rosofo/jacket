@@ -159,9 +159,14 @@ export function createProxifyOpts(
       const ctx = caller.getContext() as ProgramItemContext;
       const rawArgs = args.map(unproxify);
 
+      const returnRaw = caller
+        .toCallChainString()
+        .endsWith("getMappedRange.()");
+
       return {
         value: func(...rawArgs),
         context: { ...ctx, prevArgs: args },
+        returnRaw,
       };
     },
     valueCallback: (caller, rawValue) => {
