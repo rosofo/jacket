@@ -72,4 +72,4 @@ Anyway, after the initial bug squashing, our proxies look like this:
 
 ## Thanks
 
-@mini-ninja-64 for her awesome library `proxify` (should see a proper release soonTM)
+[mini](https://github.com/mini-ninja-64) for her awesome library `proxify` (should see a proper release soonTM)
