@@ -25,9 +25,7 @@ function App() {
           <Canvas />
         </div>
         <div className="box">
-          <ReactFlowProvider>
-            <Overview />
-          </ReactFlowProvider>
+          <Overview />
         </div>
 
         <FilePanel />
@@ -42,7 +40,7 @@ function App() {
 
 export default App;
 
-function Canvas() {
+export function Canvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   const setCanvas = useProgramStore((state) => state.setCanvas);
   useEffect(() => {

@@ -4,6 +4,7 @@ import {
   BaseEdge,
   getSimpleBezierPath,
   MarkerType,
+  ReactFlowProvider,
   type EdgeProps,
 } from "@xyflow/react";
 import {
@@ -72,6 +73,13 @@ const EDGE_TYPES = { animated: AnimatedSVGEdge };
 
 const selector = (state) => state.program;
 export default function Overview() {
+  return (
+    <ReactFlowProvider>
+      <OverviewBase />
+    </ReactFlowProvider>
+  );
+}
+function OverviewBase() {
   const program = useProgramStore(useShallow(selector));
 
   const [nodes, edges] = useMemo(() => {

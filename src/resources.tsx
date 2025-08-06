@@ -1,0 +1,21 @@
+import "@xyflow/react/dist/style.css";
+import "./index.css";
+
+import { configure, type LogRecord } from "@logtape/logtape";
+import { useLogStore } from "./hooks/log.ts";
+
+function storeSink(record: LogRecord) {
+  useLogStore.getState().push(record);
+}
+await configure({
+  sinks: { store: storeSink },
+  loggers: [
+    { category: "jacket", lowestLevel: "debug", sinks: ["store"] },
+    { category: ["jacket", "user"], lowestLevel: "trace", sinks: ["store"] },
+    {
+      category: ["jacket", "tracking"],
+      lowestLevel: "trace",
+      sinks: ["store"],
+    },
+  ],
+});
