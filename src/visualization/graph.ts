@@ -4,10 +4,7 @@ import { getLogger } from "@logtape/logtape";
 
 const logger = getLogger(["jacket", "graph"]);
 
-export type NodeWeight = Omit<
-  ProgramItem,
-  "id" | "parentId" | "dependencies" | "callChain"
->;
+export type NodeWeight = ProgramItem;
 
 export type EdgeWeight =
   | {
@@ -38,10 +35,7 @@ export function toGraph(program: Program): Graph {
   for (const item of program) {
     logger.trace`Add node: ${item}`;
     tryCountErrors(() => {
-      graph.addNode(item.id, {
-        value: item.value,
-        ephemeral: item.ephemeral,
-      });
+      graph.addNode(item.id, item);
     });
   }
   logErrors("nodes");
