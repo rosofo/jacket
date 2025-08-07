@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { animate, createScope } from "animejs";
 import {
   applyEdgeChanges,
   BaseEdge,
@@ -32,10 +33,18 @@ import {
   type ProgramItem,
 } from "../hooks/program";
 import Dagre from "@dagrejs/dagre";
-import React, { useCallback, useMemo, type ReactNode } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { pruneGraph, toGraph } from "./graph";
 import { useShallow } from "zustand/react/shallow";
 import { dropRightWhile, takeRightWhile } from "es-toolkit";
+import { useHoverInfoStore } from "../hooks/hover-info";
 
 const DefaultNode = React.memo((props: JacketProps) => {
   return <BaseNode {...props}>{props.data.label}</BaseNode>;
@@ -58,9 +67,22 @@ const StatusNode = React.memo((props: JacketProps<BaseData & StatusData>) => {
   );
 });
 
-const BaseNode = ({ children }: JacketProps & { children?: ReactNode }) => {
+const BaseNode = ({
+  children,
+  data,
+}: JacketProps & { children?: ReactNode }) => {
+  const { setHover, clear } = useHoverInfoStore(
+    useShallow(({ setHover, clear }) => ({ setHover, clear }))
+  );
   return (
-    <div className="box small relative">
+    <div
+      className="box small relative"
+      onMouseEnter={() => {
+        if (data.hoverNode !== undefined) setHover(data.hoverNode);
+      }}
+      onMouseLeave={clear}
+      style={{ cursor: "default" }}
+    >
       {children}
       <Handle position={Position.Top} type="target" />
       <Handle position={Position.Bottom} type="source" />
@@ -100,6 +122,7 @@ function OverviewBase() {
 
   return (
     <ReactFlow
+      nodesDraggable={false}
       nodes={nodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
@@ -175,7 +198,7 @@ const getLayoutedElements = (
   };
 };
 
-type BaseData = { label: string; ephemeral?: boolean };
+type BaseData = { label: string; ephemeral?: boolean; hoverNode?: ReactNode };
 type StatusData = { statuses: { node: ReactNode }[] };
 type JacketProps<T extends Record<string, unknown> = BaseData> = NodeProps<
   Node<T>
@@ -190,6 +213,7 @@ function buildNode(
   const data: BaseData & Record<string, unknown> = {
     label: "label" in info ? `${info.label} (${info.name})` : info.name,
     ephemeral: attributes.ephemeral,
+    hoverNode: <pre>{JSON.stringify(attributes.value, null, 2)}</pre>,
   };
   if ("length" in info) {
     type = "status";

@@ -10,6 +10,7 @@ import useSettingsStore from "./hooks/settings";
 import Settings from "./components/Settings";
 import { GiPauseButton, GiPlayButton } from "react-icons/gi";
 import FeatureWarning from "./components/FeatureWarning";
+import HoverInfo from "./components/HoverInfo";
 
 const logger = getLogger(["jacket"]);
 
@@ -34,6 +35,7 @@ function App() {
       </div>
       <Settings />
       <FeatureWarning />
+      <HoverInfo />
     </div>
   );
 }

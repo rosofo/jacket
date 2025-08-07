@@ -125,6 +125,14 @@ button:not(.no-box) {
     inset 3px 3px
       hsl(from var(--color-border) h s calc(l + 2 * var(--contrast)));
 }
+.box.flat {
+  background-color: hsl(
+    from var(--color-blue) h calc(s - 10 * var(--contrast))
+      calc(l - 22 * var(--contrast))
+  );
+  box-shadow: none;
+}
+
 button {
   background-color: hsl(
     from var(--color-dark) h s calc(l + 1.2 * var(--contrast))
