@@ -16,6 +16,7 @@ import { createWithEqualityFn } from "zustand/traditional";
 import isDeepEqual from "react-fast-compare";
 
 const logger = getLogger(["jacket", "program"]);
+const userLogger = getLogger(["jacket", "user"]);
 
 type ItemMeta = {
   parentId?: string;
@@ -31,7 +32,7 @@ export type Program = ProgramItem[];
 
 type ProgramStore = {
   program: Program;
-  renderFunc: null | (() => void);
+  renderFunc: null | (() => void | Promise<void>);
   evalProgram: (js: string, files: Record<string, string>) => Promise<void>;
   canvas: HTMLCanvasElement | null;
   context: GPUCanvasContext | null;
@@ -39,6 +40,21 @@ type ProgramStore = {
   playing: boolean;
   setPlaying: (fn: (current: boolean) => boolean) => void;
 };
+
+class IdCache {
+  ids: WeakMap<object, string> = new WeakMap();
+  get(rawValue: unknown): string | undefined {
+    if (typeof rawValue === "object" && rawValue !== null) {
+      return this.ids.get(rawValue);
+    }
+  }
+  set(rawValue: unknown, id: string): void {
+    if (typeof rawValue === "object" && rawValue !== null) {
+      this.ids.set(rawValue, id);
+    }
+  }
+}
+const ID_CACHE = new IdCache();
 
 export const useProgramStore = createWithEqualityFn<ProgramStore>(
   (set, get) => ({
@@ -98,11 +114,7 @@ export const useProgramStore = createWithEqualityFn<ProgramStore>(
           logger: userLogger,
         });
       } catch (error) {
-        const { filepath, line, column, err } = translateError(error, files);
-
-        userLogger.error(
-          `${filepath || ""} ${line}:${column}: [${err.name}] ${err.message}`
-        );
+        userLogger.error(error);
         throw error;
       }
 
@@ -165,18 +177,8 @@ export function createProxifyOpts(
             return { returnRaw: true };
           },
         ],
-        fallthrough: false,
+        fallthrough: true,
       },
-      // {
-      //   functionExecCallback: [
-      //     (caller, args, func) =>
-      //       caller.toCallChainString().endsWith(".configure.()"),
-      //     (caller, args, func) => {
-      //       return { value: func(...args.map(unproxify)) };
-      //     },
-      //   ],
-      //   fallthrough: false,
-      // },
     ],
     functionExecCallback: (caller, args, func) => {
       const ctx = caller.getContext() as ProgramItemContext;
@@ -199,7 +201,9 @@ export function createProxifyOpts(
       const context = caller.getContext();
       const parentId = (context as { id: string }).id;
 
-      const id = genValueId(rawValue, parentId);
+      const id = ID_CACHE.get(rawValue) || genValueId(rawValue, parentId);
+      ID_CACHE.set(rawValue, id);
+
       const deps = context.prevArgs
         ?.map((value) => {
           const argCtx = getContext(value) as ProgramItemContext | undefined;
@@ -248,7 +252,16 @@ export function useRenderLoop() {
     if (playing && renderFunc !== null) {
       let cancelled = false;
       const animate = () => {
-        renderFunc();
+        const maybePromise = renderFunc();
+        try {
+          if (maybePromise instanceof Promise) {
+            maybePromise.catch((reason) => {
+              userLogger.error(reason);
+            });
+          }
+        } catch (error) {
+          userLogger.error(error);
+        }
 
         if (!cancelled) requestAnimationFrame(animate);
       };

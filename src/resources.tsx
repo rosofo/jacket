@@ -10,7 +10,7 @@ function storeSink(record: LogRecord) {
 await configure({
   sinks: { store: storeSink },
   loggers: [
-    { category: "jacket", lowestLevel: "debug", sinks: ["store"] },
+    { category: "jacket", lowestLevel: "info", sinks: ["store"] },
     { category: ["jacket", "user"], lowestLevel: "trace", sinks: ["store"] },
     {
       category: ["jacket", "tracking"],

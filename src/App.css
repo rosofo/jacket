@@ -108,6 +108,12 @@ footer {
   max-inline-size: none;
 }
 
+pre {
+  overflow: hidden;
+  min-inline-size: 30ch;
+  text-wrap-mode: wrap;
+}
+
 .box,
 button:not(.no-box) {
   padding: var(--s0);
@@ -283,10 +289,13 @@ button.slim {
 }
 
 .layout {
-  min-inline-size: 100vw;
-  min-block-size: 100vh;
+  inline-size: 100vw;
+  block-size: 100vh;
   display: grid;
-  grid-template-columns: 50% auto;
+  /* grid-template-columns: 50% auto; */
+  grid-template-columns: repeat(auto-fit, minmax(min(600px, 100%), 1fr));
+  grid-template-rows: 1fr minmax(300px, 1fr) repeat(2, minmax(300px, 500px));
+
   gap: 1rem;
   padding: 1rem;
 }
