@@ -36,9 +36,10 @@ function proxifyValue<T extends object, K extends keyof T, C>(
   options: ProxifyOptions<C>,
   returnRaw?: boolean
 ) {
-  const valueCallbackReturn = getMatchedCallbacks(value, options).valueCallback(
-    currentCaller,
-    value
+  const valueCallbackReturn = runCallback(
+    "valueCallback",
+    [currentCaller, value],
+    options
   );
   const normalisedValue =
     valueCallbackReturn?.value === undefined
@@ -94,10 +95,11 @@ function proxifyValue<T extends object, K extends keyof T, C>(
         return result;
       };
       currentCaller = currentCaller.extend({ type: "executed" });
-      const functionExeccallbackReturn = getMatchedCallbacks(
-        normalisedValue,
+      const functionExeccallbackReturn = runCallback(
+        "functionExecCallback",
+        [currentCaller, actualArgs, actualFunction],
         options
-      ).functionExecCallback(currentCaller, actualArgs, actualFunction);
+      );
       returnRaw = functionExeccallbackReturn?.returnRaw || returnRaw;
       if (functionExeccallbackReturn?.context !== undefined) {
         currentCaller = withContext(
@@ -169,11 +171,19 @@ export interface ProxifyCallbacks<C, T = unknown> {
     func: (...args: unknown[]) => unknown
   ) => ProxifyReturn<C>;
 }
-export interface Matcher<C, T> extends Partial<ProxifyCallbacks<C, T>> {
-  match(rawValue: unknown): rawValue is T;
-}
+export type Matcher<C, T, P> = P extends keyof ProxifyCallbacks<C, T>
+  ? [
+      (...args: Parameters<ProxifyCallbacks<C, T>[P]>) => boolean,
+      ProxifyCallbacks<C, T>[P]
+    ]
+  : never;
+export type Matchers<C, T> = {
+  [Property in keyof Partial<ProxifyCallbacks<C, T>>]:
+    | Matcher<C, T, Property>
+    | undefined;
+} & { fallthrough?: boolean };
 export interface ProxifyOptions<C> extends ProxifyCallbacks<C> {
-  matchers: Matcher<C, unknown>[];
+  matchers: Matchers<C, unknown>[];
   context: C;
 }
 
@@ -181,10 +191,10 @@ export function proxify<T extends object, C>(
   target: T,
   proxyifyOptions: Partial<ProxifyOptions<C>> = {}
 ): T {
-  const defaults: Omit<
-    ProxifyOptions<C>,
-    "context" | "matchers"
-  > = DEFAULT_CALLBACKS;
+  const defaults: Omit<ProxifyOptions<C>, "context"> = {
+    ...DEFAULT_CALLBACKS,
+    matchers: [],
+  };
   const options = { ...defaults, ...proxyifyOptions };
   const p = new Proxy(
     target,
@@ -245,14 +255,30 @@ function isUnhandleable(
   return property === "constructor";
 }
 
-function getMatchedCallbacks<C>(
-  value: unknown,
-  { functionExecCallback, valueCallback, matchers }: ProxifyOptions<C>
-): ProxifyCallbacks<C> {
-  for (const { match, ...callbacks } of matchers || []) {
-    if (match(value)) {
-      return { ...DEFAULT_CALLBACKS, ...callbacks };
+function runCallback<C, P extends keyof ProxifyCallbacks<C>>(
+  callbackName: P,
+  args: Parameters<ProxifyCallbacks<C>[P]>,
+  { matchers, ...options }: ProxifyOptions<C>
+): ProxifyReturn<C> {
+  let result;
+  for (const matcher of matchers || []) {
+    const callbackMatcher = matcher[callbackName];
+    if (callbackMatcher === undefined) continue;
+    const [match, callback] = callbackMatcher;
+    if (match(...args)) {
+      const matchResult = callback(...args);
+      if (matchResult !== undefined) {
+        result = { ...(result || {}), ...matchResult };
+      }
+
+      if (!matcher.fallthrough) {
+        return result;
+      }
     }
   }
-  return { functionExecCallback, valueCallback };
+  const defaultResult = options[callbackName](...args);
+  if (defaultResult !== undefined) {
+    result = { ...(result || {}), ...defaultResult };
+  }
+  return result;
 }

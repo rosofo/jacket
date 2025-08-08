@@ -174,10 +174,12 @@ suite("using matchers", () => {
         },
         matchers: [
           {
-            match: (v) => typeof v === "number",
-            valueCallback: (callChain, rawValue) => {
-              return { value: rawValue + 1 };
-            },
+            valueCallback: [
+              (callChain, rawValue) => typeof rawValue === "number",
+              (callChain, rawValue) => {
+                return { value: rawValue + 1 };
+              },
+            ],
           },
         ],
       }

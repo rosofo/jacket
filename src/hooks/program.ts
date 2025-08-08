@@ -155,19 +155,35 @@ export function createProxifyOpts(
     return id;
   }
   return {
+    matchers: [
+      {
+        functionExecCallback: [
+          (caller, args, func) => {
+            return caller.toCallChainString().endsWith(".getMappedRange.()");
+          },
+          (caller, args, func) => {
+            return { returnRaw: true };
+          },
+        ],
+        fallthrough: false,
+      },
+      // {
+      //   functionExecCallback: [
+      //     (caller, args, func) =>
+      //       caller.toCallChainString().endsWith(".configure.()"),
+      //     (caller, args, func) => {
+      //       return { value: func(...args.map(unproxify)) };
+      //     },
+      //   ],
+      //   fallthrough: false,
+      // },
+    ],
     functionExecCallback: (caller, args, func) => {
       const ctx = caller.getContext() as ProgramItemContext;
-      // const rawArgs = args.map(unproxify);
-
-      const returnRaw = caller
-        .toCallChainString()
-        .endsWith(".getMappedRange.()");
 
       return {
-        // value: func(...rawArgs),
-        value: func(args),
+        value: func(...args),
         context: { ...ctx, prevArgs: args },
-        returnRaw,
       };
     },
     valueCallback: (caller, rawValue) => {
