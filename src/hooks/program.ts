@@ -182,7 +182,15 @@ export function createProxifyOpts(
       const ctx = caller.getContext() as ProgramItemContext;
 
       return {
-        value: func(...args),
+        value: func(
+          ...args.map((arg) =>
+            unproxify(arg, {
+              filter: (value) =>
+                typeof value === "object" &&
+                (value?.constructor?.name || "").startsWith("GPU"),
+            })
+          )
+        ),
         context: { ...ctx, prevArgs: args },
       };
     },

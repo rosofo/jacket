@@ -206,23 +206,29 @@ export function proxify<T extends object, C>(
   return p;
 }
 
-export function unproxify<T>(proxied: T): T {
+export function unproxify<T>(
+  proxied: T,
+  options?: { filter?: (value: unknown) => boolean }
+): T {
+  const filter =
+    typeof options?.filter === "function" ? options?.filter : () => true;
+
   if (proxied === null || proxied === undefined || typeof proxied !== "object")
     return proxied as T;
 
   const state = Tracking.getState(proxied);
-  if (state !== undefined) {
+  if (state !== undefined && filter(proxied)) {
     return state.rawValue as T;
   }
   // There was no associated state, meaning we're dealing with a plain unproxied value.
 
   if (proxied instanceof Array) {
-    return proxied.map(unproxify) as T;
+    return proxied.map((value) => unproxify(value, options)) as T;
   } else {
     // can't do Object.fromEntries etc because some exotic objects like GPUBuffer shouldn't be copied
     for (const key of Object.keys(proxied)) {
       // @ts-expect-error we can be *pretty* sure it's a string record at this point?
-      proxied[key] = unproxify(proxied[key]);
+      proxied[key] = unproxify(proxied[key], options);
     }
     return proxied;
   }
