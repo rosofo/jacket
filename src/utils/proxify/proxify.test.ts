@@ -16,13 +16,7 @@ test("context can be immutably updated from valueCallback", () => {
       const context = caller.getContext();
       return {
         context: {
-          count:
-            (
-              context as {
-                count: number;
-                i: number;
-              }
-            ).count + 1,
+          count: context.count + 1,
         },
       };
     },
@@ -47,7 +41,7 @@ test("context setting via property access is idempotent ", () => {
       valueCallback: (caller, rawValue) => {
         const context = caller.getContext();
         return {
-          context: { i: (context as { i: number }).i + 1 },
+          context: { i: context.i + 1 },
           value: rawValue,
         };
       },
@@ -80,7 +74,7 @@ test("context is passed to arbitrarily deep properties", () => {
           const context = caller.getContext();
           return {
             value: rawValue,
-            context: { i: (context as { i: number }).i + 1 },
+            context: { i: context.i + 1 },
           };
         },
       });
@@ -117,7 +111,7 @@ test("context can be modified on method calls", () => {
         const context = caller.getContext();
         return {
           value: func(...args),
-          context: { i: (context as { i: number }).i + 1 },
+          context: { i: context.i + 1 },
         };
       },
     }
@@ -134,7 +128,7 @@ test("context is passed through promises", async () => {
       context: { i: 0 },
       valueCallback: (caller) => {
         const context = caller.getContext();
-        return { context: { i: (context as { i: number }).i + 1 } };
+        return { context: { i: context.i + 1 } };
       },
     }
   );
@@ -147,7 +141,7 @@ test("context is passed through promises", async () => {
 });
 
 test("value callback is called", () => {
-  const chains: CallChain[] = [];
+  const chains: CallChain<unknown>[] = [];
   const p = proxify(
     { a: () => () => {} },
     {

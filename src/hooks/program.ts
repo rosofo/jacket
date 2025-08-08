@@ -157,21 +157,22 @@ export function createProxifyOpts(
   return {
     functionExecCallback: (caller, args, func) => {
       const ctx = caller.getContext() as ProgramItemContext;
-      const rawArgs = args.map(unproxify);
+      // const rawArgs = args.map(unproxify);
 
       const returnRaw = caller
         .toCallChainString()
         .endsWith(".getMappedRange.()");
 
       return {
-        value: func(...rawArgs),
+        // value: func(...rawArgs),
+        value: func(args),
         context: { ...ctx, prevArgs: args },
         returnRaw,
       };
     },
     valueCallback: (caller, rawValue) => {
       if (typeof rawValue === "function" || rawValue instanceof Promise) return;
-      const context = caller.getContext() as ProgramItemContext;
+      const context = caller.getContext();
       const parentId = (context as { id: string }).id;
 
       const id = genValueId(rawValue, parentId);

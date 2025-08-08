@@ -30,9 +30,9 @@ interface JsProxyProperties<T extends object, K extends keyof T> {
  * - target: the object being accessed, e.g. target['property'] or target.property
  * - receiver: the value of `this` for the current getter
  */
-function proxifyValue<T extends object, K extends keyof T, C extends object>(
+function proxifyValue<T extends object, K extends keyof T, C>(
   { value, receiver, target }: JsProxyProperties<T, K>,
-  currentCaller: CallChain,
+  currentCaller: CallChain<C>,
   options: ProxifyOptions<C>,
   returnRaw?: boolean
 ) {
@@ -130,10 +130,7 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   }
   return normalisedValue;
 }
-function handler<C extends object>(
-  caller: CallChain = new CallChain([], undefined),
-  options: ProxifyOptions<C>
-) {
+function handler<C>(caller: CallChain<C>, options: ProxifyOptions<C>) {
   return {
     get(
       target: Record<string, unknown>,
@@ -165,9 +162,9 @@ type ProxifyReturn<C> = {
 } | void;
 
 export interface ProxifyCallbacks<C, T = unknown> {
-  valueCallback: (caller: CallChain, rawValue: T) => ProxifyReturn<C>;
+  valueCallback: (caller: CallChain<C>, rawValue: T) => ProxifyReturn<C>;
   functionExecCallback: (
-    caller: CallChain,
+    caller: CallChain<C>,
     args: unknown[],
     func: (...args: unknown[]) => unknown
   ) => ProxifyReturn<C>;
@@ -191,7 +188,7 @@ export function proxify<T extends object, C>(
   const options = { ...defaults, ...proxyifyOptions };
   const p = new Proxy(
     target,
-    // @ts-ignore
+    // @ts-expect-error honestly not sure how to fix this one ha
     handler(new CallChain([], options.context), options)
   );
   const state = { callChain: new CallChain([], options.context) };
@@ -214,29 +211,30 @@ export function unproxify<T>(proxied: T): T {
   } else {
     // can't do Object.fromEntries etc because some exotic objects like GPUBuffer shouldn't be copied
     for (const key of Object.keys(proxied)) {
+      // @ts-expect-error we can be *pretty* sure it's a string record at this point?
       proxied[key] = unproxify(proxied[key]);
     }
     return proxied;
   }
 }
 
-function getCallChain(proxied: unknown) {
+function getCallChain<C = unknown>(proxied: unknown): CallChain<C> | undefined {
   if (typeof proxied === "object" && proxied !== null) {
     return Tracking.getState(proxied)?.callChain;
   }
 }
 
-export function getContext(proxied: unknown) {
-  return getCallChain(proxied)?.getContext();
+export function getContext<C = unknown>(proxied: unknown): C | undefined {
+  return getCallChain<C>(proxied)?.getContext();
 }
 
-function withContext(callChain: CallChain, context: unknown) {
+function withContext<C>(callChain: CallChain<C>, context: C) {
   const rest = callChain.chain.slice(0, -1);
   const last = { ...callChain.chain.slice(-1)[0], context };
   return new CallChain([...rest, last], callChain.rootContext);
 }
 
-function shouldNotWrap(value: unknown, callChain: CallChain) {
+function shouldNotWrap<C>(value: unknown, callChain: CallChain<C>) {
   return false;
 }
 function isUnhandleable(
