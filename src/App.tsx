@@ -33,7 +33,6 @@ function App() {
 
         <LogPanel />
       </div>
-      <Settings />
       <FeatureWarning />
       <HoverInfo />
     </div>
