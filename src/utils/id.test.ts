@@ -6,12 +6,10 @@ suite("genId", () => {
     const data = "abcd";
     const parentId = "";
 
-    let last = genId(data, parentId);
+    const first = genId(data, parentId);
     for (let i = 0; i < 10; i++) {
       const id = genId(data, parentId);
-      expect(id).to.equal(last);
-
-      last = id;
+      expect(id).to.equal(first);
     }
   });
 });

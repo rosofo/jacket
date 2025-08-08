@@ -5,6 +5,11 @@ import { CallChain } from "./call-chain";
 import { Tracking } from "./track";
 import type { ProxifyState } from "./types";
 
+const DEFAULT_CALLBACKS = {
+  valueCallback: () => {},
+  functionExecCallback: () => {},
+};
+
 type BaseTypes =
   | "string"
   | "number"
@@ -31,7 +36,10 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   options: ProxifyOptions<C>,
   returnRaw?: boolean
 ) {
-  const valueCallbackReturn = options.valueCallback(currentCaller, value);
+  const valueCallbackReturn = getMatchedCallbacks(value, options).valueCallback(
+    currentCaller,
+    value
+  );
   const normalisedValue =
     valueCallbackReturn?.value === undefined
       ? value
@@ -39,7 +47,10 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   if (valueCallbackReturn?.context !== undefined) {
     currentCaller = withContext(currentCaller, valueCallbackReturn.context);
   }
-  returnRaw = valueCallbackReturn?.returnRaw || returnRaw;
+  returnRaw =
+    valueCallbackReturn?.returnRaw ||
+    shouldNotWrap(value, currentCaller) ||
+    returnRaw;
 
   const state: ProxifyState = {
     rawValue: normalisedValue,
@@ -76,18 +87,17 @@ function proxifyValue<T extends object, K extends keyof T, C extends object>(
   } else if (normalisedValue instanceof Function) {
     // Do not make this an arrow function, it wont work for *this* reasons :p
     const f = function (...actualArgs: unknown[]) {
-      // @ts-ignore
+      // @ts-expect-error we need this awful trickery according to [insert mdn page with example of Proxy forwarding]
       const t = this === receiver ? target : this;
       const actualFunction = (...args: unknown[]) => {
         const result = normalisedValue.apply(t, args);
         return result;
       };
       currentCaller = currentCaller.extend({ type: "executed" });
-      const functionExeccallbackReturn = options.functionExecCallback(
-        currentCaller,
-        actualArgs,
-        actualFunction
-      );
+      const functionExeccallbackReturn = getMatchedCallbacks(
+        normalisedValue,
+        options
+      ).functionExecCallback(currentCaller, actualArgs, actualFunction);
       returnRaw = functionExeccallbackReturn?.returnRaw || returnRaw;
       if (functionExeccallbackReturn?.context !== undefined) {
         currentCaller = withContext(
@@ -130,6 +140,9 @@ function handler<C extends object>(
       property: string,
       receiver: Record<string, unknown>
     ): unknown {
+      if (isUnhandleable(target, property, receiver)) {
+        return target[property];
+      }
       const value = target[property];
       const currentCaller = caller.extend({
         name: property,
@@ -151,13 +164,19 @@ type ProxifyReturn<C> = {
   returnRaw?: boolean;
 } | void;
 
-export interface ProxifyOptions<C> {
-  valueCallback: (caller: CallChain, rawValue: unknown) => ProxifyReturn<C>;
+export interface ProxifyCallbacks<C, T = unknown> {
+  valueCallback: (caller: CallChain, rawValue: T) => ProxifyReturn<C>;
   functionExecCallback: (
     caller: CallChain,
     args: unknown[],
     func: (...args: unknown[]) => unknown
   ) => ProxifyReturn<C>;
+}
+export interface Matcher<C, T> extends Partial<ProxifyCallbacks<C, T>> {
+  match(rawValue: unknown): rawValue is T;
+}
+export interface ProxifyOptions<C> extends ProxifyCallbacks<C> {
+  matchers: Matcher<C, unknown>[];
   context: C;
 }
 
@@ -165,10 +184,10 @@ export function proxify<T extends object, C>(
   target: T,
   proxyifyOptions: Partial<ProxifyOptions<C>> = {}
 ): T {
-  const defaults: Omit<ProxifyOptions<C>, "context"> = {
-    valueCallback: () => {},
-    functionExecCallback: () => {},
-  };
+  const defaults: Omit<
+    ProxifyOptions<C>,
+    "context" | "matchers"
+  > = DEFAULT_CALLBACKS;
   const options = { ...defaults, ...proxyifyOptions };
   const p = new Proxy(
     target,
@@ -215,4 +234,27 @@ function withContext(callChain: CallChain, context: unknown) {
   const rest = callChain.chain.slice(0, -1);
   const last = { ...callChain.chain.slice(-1)[0], context };
   return new CallChain([...rest, last], callChain.rootContext);
+}
+
+function shouldNotWrap(value: unknown, callChain: CallChain) {
+  return false;
+}
+function isUnhandleable(
+  target: Record<string, unknown>,
+  property: string,
+  receiver: Record<string, unknown>
+) {
+  return property === "constructor";
+}
+
+function getMatchedCallbacks<C>(
+  value: unknown,
+  { functionExecCallback, valueCallback, matchers }: ProxifyOptions<C>
+): ProxifyCallbacks<C> {
+  for (const { match, ...callbacks } of matchers || []) {
+    if (match(value)) {
+      return { ...DEFAULT_CALLBACKS, ...callbacks };
+    }
+  }
+  return { functionExecCallback, valueCallback };
 }

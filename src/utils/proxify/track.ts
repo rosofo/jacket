@@ -36,3 +36,8 @@ export class Tracking {
     return this.states.get(proxy);
   }
 }
+
+declare global {
+  var proxifyTracking: typeof Tracking;
+}
+globalThis.proxifyTracking = Tracking;

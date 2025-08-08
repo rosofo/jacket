@@ -1,4 +1,4 @@
-import { test, expect } from "vitest";
+import { test, expect, suite } from "vitest";
 import { getContext, proxify } from ".";
 import * as fc from "fast-check";
 import { configure, getConsoleSink } from "@logtape/logtape";
@@ -54,8 +54,8 @@ test("context setting via property access is idempotent ", () => {
     }
   );
 
-  expect(getContext(p.a).i).to.equal(1);
-  expect(getContext(p.a).i).to.equal(1);
+  expect((getContext(p.a) as { i: number }).i).to.equal(1);
+  expect((getContext(p.a) as { i: number }).i).to.equal(1);
 });
 
 test("context is passed to arbitrarily deep properties", () => {
@@ -65,13 +65,15 @@ test("context is passed to arbitrarily deep properties", () => {
     branch: Tree;
     leaf: object;
   }>((tie) => ({
-    tree: fc.oneof({ depthSize: "small" }, tie("branch"), tie("leaf")),
+    tree: fc.oneof({ depthSize: "medium" }, tie("branch"), tie("leaf")),
     branch: fc.record({ a: tie("tree") }, { requiredKeys: [] }),
     leaf: fc.constant({}),
   }));
 
   fc.assert(
     fc.property(nested, (nested) => {
+      nested = structuredClone(nested);
+      console.log("new run");
       let proxied = proxify(nested, {
         context: { i: 0 },
         valueCallback: (caller, rawValue) => {
@@ -160,4 +162,33 @@ test("value callback is called", () => {
   expect(chains[0].toCallChainString()).to.equal(".a");
   expect(chains[1].toCallChainString()).to.equal(".a.()");
   expect(chains[2].toCallChainString()).to.equal(".a.().()");
+});
+
+test("constructor property is skipped", () => {
+  const arr = proxify(new Float32Array([1, 2, 3]));
+  // @ts-expect-error weird typing
+  new arr.constructor();
+});
+
+suite("using matchers", () => {
+  test("matched values are handled by their matcher callbacks", () => {
+    const a = proxify(
+      { a: 1, b: "hi" },
+      {
+        valueCallback: (callChain, rawValue) => {
+          return { value: rawValue.toUpperCase() };
+        },
+        matchers: [
+          {
+            match: (v) => typeof v === "number",
+            valueCallback: (callChain, rawValue) => {
+              return { value: rawValue + 1 };
+            },
+          },
+        ],
+      }
+    );
+    expect(a.a).to.equal(2);
+    expect(a.b).to.equal("HI");
+  });
 });

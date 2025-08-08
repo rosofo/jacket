@@ -1,4 +1,9 @@
-export async function main(params: {
+export async function program({
+  navigator,
+  canvas,
+  files,
+  logger,
+}: {
   navigator: Navigator;
   canvas: HTMLCanvasElement;
   logger: Record<string, (msg: string) => void>;
