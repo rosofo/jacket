@@ -28,6 +28,7 @@
     "graphology": "^0.26.0",
     "idb-keyval": "^6.2.2",
     "immer": "^10.1.1",
+    "radix-ui": "^1.4.2",
     "rambda": "^10.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

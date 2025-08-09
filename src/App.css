@@ -114,9 +114,11 @@ pre {
   text-wrap-mode: wrap;
 }
 
+.box {
+  padding: var(--s0);
+}
 .box,
 button:not(.no-box) {
-  padding: var(--s0);
   background-color: hsl(from var(--color-dark) h s calc(l + var(--contrast)));
 
   border: none;
@@ -143,13 +145,10 @@ button {
   background-color: hsl(
     from var(--color-dark) h s calc(l + 1.2 * var(--contrast))
   );
-  padding: var(--s-2) var(--s-1);
+  padding: var(--s-3) var(--s-1);
 }
 button:hover {
   --contrast: 4;
-}
-button.slim {
-  padding: var(--s-3) var(--s-1);
 }
 
 .box * {

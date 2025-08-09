@@ -1,0 +1,55 @@
+.grow {
+  flex: 1 1;
+  align-self: stretch;
+}
+
+.transport {
+  align-self: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  user-select: none;
+  touch-action: none;
+  width: 200px;
+  height: 20px;
+}
+
+.track {
+  background-color: hsl(
+    from var(--color-dark) h s calc(l + 3 * var(--contrast))
+  );
+  position: relative;
+  flex-grow: 1;
+  border-radius: 9999px;
+  height: 3px;
+}
+
+.range {
+  position: absolute;
+  background-color: white;
+  border-radius: 9999px;
+  height: 100%;
+}
+
+.thumb {
+  font-size: var(--s0);
+}
+.thumb:focus {
+  outline: none;
+}
+
+.box.compact {
+  padding: var(--s-4);
+}
+.compact {
+  font-size: var(--s-1);
+  button {
+    padding: var(--s-5) var(--s-3);
+  }
+}
+
+.timeline {
+  *[role="status"] {
+    min-width: 4rem;
+  }
+}
