@@ -1,5 +1,3 @@
-import { z } from "zod/v4";
-import { animate, createScope } from "animejs";
 import {
   applyEdgeChanges,
   BaseEdge,
@@ -45,6 +43,7 @@ import { pruneGraph, toGraph } from "./graph";
 import { useShallow } from "zustand/react/shallow";
 import { dropRightWhile, takeRightWhile } from "es-toolkit";
 import { useHoverInfoStore } from "../hooks/hover-info";
+import AbstractSvg from "../components/AbstractSvg";
 
 const DefaultNode = React.memo((props: JacketProps) => {
   return <BaseNode {...props}>{props.data.label}</BaseNode>;
@@ -209,12 +208,27 @@ function buildNode(
   attributes: Omit<ProgramItem, "id" | "parentId" | "dependencies">
 ) {
   let type = "basic";
-  const info = valueInfo(attributes.value);
-  const data: BaseData & Record<string, unknown> = {
+  let info: ValueInfo = { name: "object", fields: {} };
+  if (typeof attributes.value === "object" && attributes.value !== null)
+    info = valueInfo(attributes.value);
+  const data: BaseData & Partial<StatusData> & Record<string, unknown> = {
     label: "label" in info ? `${info.label} (${info.name})` : info.name,
     ephemeral: attributes.ephemeral,
     hoverNode: <pre>{JSON.stringify(attributes.value, null, 2)}</pre>,
   };
+  if ("size" in info) {
+    type = "status";
+    data.statuses = [
+      {
+        node: (
+          <div className="cluster small">
+            <GiPencilRuler />
+            {`length: ${info.size}`}
+          </div>
+        ),
+      },
+    ];
+  }
   if ("length" in info) {
     type = "status";
     data.statuses = [
@@ -280,6 +294,23 @@ function buildNode(
       },
     ];
   }
+  const extraFields = Object.entries(info.fields);
+  if (extraFields.length > 0) {
+    type = "status";
+    data.statuses = [
+      ...(data.statuses || []),
+      ...extraFields
+        .filter(([k, v]) => typeof v === "number" || v.length < 20)
+        .map(([k, v]) => ({
+          node: (
+            <div className="cluster small">
+              <AbstractSvg from={k} />
+              {`${k}: ${v}`}
+            </div>
+          ),
+        })),
+    ];
+  }
   return {
     id: node,
     data,
@@ -288,38 +319,50 @@ function buildNode(
   };
 }
 
-const ValueInfo = z.intersection(
-  z.union([
-    z
-      .array(z.any())
-      .transform((v) => ({ name: "array" as const, length: v.length })),
-    z.instanceof(Float32Array).transform((v) => ({
-      name: "Float32Array" as const,
-      length: v.length,
-      bytes: v.byteLength,
-      offset: v.byteOffset,
-    })),
-    z
-      .object({ name: z.string().nonempty() })
-      .transform((v) => ({ name: v.name })),
-    z
-      .record(z.string(), z.union([z.number(), z.string()]))
-      .transform((v) => ({ name: "object" as const, fields: v })),
-  ]),
-  z.object({ label: z.optional(z.string().nonempty()) })
+type ValueInfo = {
+  name: string;
+  label?: string;
+  fields: Record<string, string | number>;
+} & (
+  | { length: number }
+  | { length: number; bytes: number; offset: number }
+  | { size: number }
+  | Record<string, unknown>
 );
-type ValueInfo = z.infer<typeof ValueInfo> | { name: string };
 
-function valueInfo(value: unknown): ValueInfo {
-  try {
-    const constructorName = value?.constructor?.name;
-    return constructorName !== undefined &&
-      !constructorName.match(/(Object|.*?Array(Buffer)?)/)
-      ? { name: constructorName }
-      : ValueInfo.parse(value);
-  } catch {
-    return { name: String(value) };
+function valueInfo(value: Record<string, unknown>): ValueInfo {
+  const info: ValueInfo = { name: "object", fields: {} };
+  const constructorName = value?.constructor?.name;
+  if (constructorName !== undefined) {
+    info.name = constructorName;
   }
+  if (typeof value === "object" && value !== null) {
+    if (value.label?.length) info.label = value.label as string;
+    if (value.length !== undefined) {
+      info.length = value.length as number;
+    }
+    if (value.byteLength !== undefined) {
+      info.bytes = value.byteLength as number;
+      info.offset = value.byteOffset as number;
+    }
+    if ("size" in value) {
+      info.size = value.size;
+    }
+
+    if (!("length" in value)) {
+      for (const [key, v] of Object.entries(value)) {
+        if (
+          !["name", "label", "length", "byteLength", "offset", "size"].includes(
+            key
+          ) &&
+          (typeof v === "string" || typeof v === "number")
+        ) {
+          info.fields[key] = v;
+        }
+      }
+    }
+  }
+  return info;
 }
 
 function AnimatedSVGEdge({
