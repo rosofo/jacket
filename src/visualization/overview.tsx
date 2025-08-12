@@ -2,23 +2,13 @@ import {
   applyEdgeChanges,
   BaseEdge,
   getSimpleBezierPath,
-  MarkerType,
   ReactFlowProvider,
   type EdgeProps,
 } from "@xyflow/react";
-import {
-  Background,
-  ReactFlow,
-  useReactFlow,
-  type Edge,
-  type Node,
-} from "@xyflow/react";
+import { Background, ReactFlow, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useProgramStore, type Program } from "../hooks/program";
+import { useProgramStore } from "../hooks/program";
 import { useCallback, useMemo } from "react";
-import { pruneGraph, toGraph } from "./graph";
-import { useShallow } from "zustand/react/shallow";
-import { dropRightWhile } from "es-toolkit";
 import { getLayoutedElements } from "./layout";
 import { DefaultNode } from "./nodes/DefaultNode";
 import { StatusNode } from "./nodes/StatusNode";
@@ -27,7 +17,6 @@ import { buildData } from "./flow-graph";
 const NODE_TYPES = { basic: DefaultNode, status: StatusNode };
 const EDGE_TYPES = { animated: AnimatedSVGEdge };
 
-const selector = (state) => state.program;
 export default function Overview() {
   return (
     <ReactFlowProvider>
@@ -36,7 +25,7 @@ export default function Overview() {
   );
 }
 function OverviewBase() {
-  const program = useProgramStore(useShallow(selector));
+  const program = useProgramStore((state) => state.program);
 
   const [nodes, edges] = useMemo(() => {
     const [nodes, edges] = buildData(program);

@@ -9,4 +9,4 @@ export type BaseData = {
   ephemeral?: boolean;
   hoverNode?: ReactNode;
 };
-export type StatusData = { statuses: { node: ReactNode }[] };
+export type StatusData = { statuses: { icon: ReactNode; label: string }[] };

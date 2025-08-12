@@ -13,6 +13,7 @@ import type { BaseData, StatusData } from "./nodes/types";
 import { pruneGraph, toGraph } from "./graph";
 import { dropRightWhile } from "es-toolkit";
 import { MarkerType, type Edge } from "@xyflow/react";
+import type { ReactNode } from "react";
 
 export function buildData(program: Program): [Node[], Edge[]] {
   const graph = toGraph(program);
@@ -48,7 +49,6 @@ export function buildNode(
   node: string,
   attributes: Omit<ProgramItem, "id" | "parentId" | "dependencies">
 ) {
-  let type = "basic";
   let info: ValueInfo = { name: "object", fields: {} };
   if (typeof attributes.value === "object" && attributes.value !== null)
     info = valueInfo(attributes.value);
@@ -57,105 +57,77 @@ export function buildNode(
     ephemeral: attributes.ephemeral,
     hoverNode: <pre>{JSON.stringify(attributes.value, null, 2)}</pre>,
   };
+  const statuses = buildStatuses(info, attributes);
+  const type = statuses.length > 0 ? "status" : "basic";
+  return {
+    id: node,
+    data: { ...data, statuses: type === "status" ? statuses : undefined },
+    position: { x: 0, y: 0 },
+    type: statuses.length > 0 ? "status" : "basic",
+  };
+}
+function buildStatuses(
+  info: ValueInfo,
+  attributes: Omit<ProgramItem, "id" | "parentId" | "dependencies">
+) {
+  let statuses: StatusData["statuses"] = [];
   if ("size" in info) {
-    type = "status";
-    data.statuses = [
+    statuses = [
       {
-        node: (
-          <div className="cluster small">
-            <GiPencilRuler />
-            {`length: ${info.size}`}
-          </div>
-        ),
+        icon: <GiPencilRuler />,
+        label: `length: ${info.size}`,
       },
     ];
   }
   if ("length" in info) {
-    type = "status";
-    data.statuses = [
+    statuses = [
       {
-        node: (
-          <div className="cluster small">
-            <GiPencilRuler />
-            {`length: ${info.length}`}
-          </div>
-        ),
+        icon: <GiPencilRuler />,
+        label: `length: ${info.length}`,
       },
     ];
     if ("bytes" in info) {
-      data.statuses.push(
+      statuses.push(
         {
-          node: (
-            <div className="cluster small">
-              <GiDatabase />
-              {`bytes: ${info.bytes}`}
-            </div>
-          ),
+          icon: <GiDatabase />,
+          label: `bytes: ${info.bytes}`,
         },
         {
-          node: (
-            <div className="cluster small">
-              <GiJumpAcross />
-              {`offset: ${info.offset}`}
-            </div>
-          ),
+          icon: <GiJumpAcross />,
+          label: `offset: ${info.offset}`,
         }
       );
     }
   } else if (attributes.value instanceof GPUDevice) {
-    type = "status";
-    data.statuses = [
+    statuses = [
       {
-        node: (
-          <div className="cluster small ">
-            <GiCircuitry />
-            {attributes.value.adapterInfo.architecture}
-          </div>
-        ),
+        icon: <GiCircuitry />,
+        label: attributes.value.adapterInfo.architecture,
       },
     ];
   } else if (attributes.value instanceof GPUBuffer) {
-    type = "status";
-    data.statuses = [
+    statuses = [
       {
-        node: (
-          <div className="cluster small">
-            <GiPerspectiveDiceFour />
-            {attributes.value.size}
-          </div>
-        ),
+        icon: <GiPerspectiveDiceFour />,
+        label: attributes.value.size.toString(),
       },
       {
-        node: (
-          <div className="cluster small">
-            <GiTreasureMap />
-            {attributes.value.mapState}
-          </div>
-        ),
+        icon: <GiTreasureMap />,
+        label: attributes.value.mapState,
       },
     ];
   }
   const extraFields = Object.entries(info.fields);
   if (extraFields.length > 0) {
-    type = "status";
-    data.statuses = [
-      ...(data.statuses || []),
+    statuses = [
+      ...(statuses || []),
       ...extraFields
         .filter(([k, v]) => typeof v === "number" || v.length < 20)
         .map(([k, v]) => ({
-          node: (
-            <div className="cluster small">
-              <AbstractSvg from={k} />
-              {`${k}: ${v}`}
-            </div>
-          ),
+          icon: <AbstractSvg from={k} />,
+          label: `${k}: ${v}`,
         })),
     ];
   }
-  return {
-    id: node,
-    data,
-    position: { x: 0, y: 0 },
-    type,
-  };
+  return statuses;
 }
