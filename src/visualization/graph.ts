@@ -91,34 +91,3 @@ function shouldPrune(value: unknown) {
     typeof value === "number"
   );
 }
-
-export function expandDependencyEdges(graph: Graph) {
-  const depEdges = graph
-    .mapDirectedEdges((edge, weight, source, target) =>
-      weight.type === "dependency" ? { edge, source, target } : null
-    )
-    .filter((v) => v !== null);
-  const addRoutingNode = (target: string) => {
-    const routingNode = `route-${target}`;
-    const targetParentEdge = graph.findInboundEdge(target, (edge, weight) => {
-      return weight.type === "parent";
-    });
-    const callChain = graph.getEdgeAttribute(targetParentEdge, "callChain");
-    const targetParent = graph.source(targetParentEdge);
-
-    graph.addNode(routingNode);
-    graph.addDirectedEdge(targetParent, routingNode, {
-      type: "parent",
-      callChain,
-    });
-    graph.addDirectedEdge(routingNode, target, { type: "parent", callChain });
-  };
-  for (const { edge, source, target } of depEdges) {
-    const routingNode = `route-${target}`;
-    if (!graph.hasNode(routingNode)) {
-      addRoutingNode(target);
-    }
-    graph.dropEdge(edge);
-    graph.addEdgeWithKey(edge, source, routingNode);
-  }
-}
