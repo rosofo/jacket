@@ -1,0 +1,13 @@
+.react-flow__edge.background,
+.react-flow__node.background {
+  opacity: 0.5;
+  transition-property: opacity;
+  transition-duration: 200ms;
+}
+
+.react-flow__container:has(.background:hover) {
+  .react-flow__edge.background,
+  .react-flow__node.background {
+    opacity: 1;
+  }
+}

@@ -56,6 +56,7 @@ export function toGraph(program: Program): Graph {
           if (dep.untrackedValue !== undefined) {
             graph.addNode(dep.id, {
               value: dep.untrackedValue,
+              id: dep.id,
               ephemeral: item.ephemeral,
             });
           }

@@ -10,7 +10,7 @@ import AbstractSvg from "../components/AbstractSvg";
 import type { Program, ProgramItem } from "../hooks/program";
 import { type ValueInfo, valueInfo } from "./data/values";
 import type { BaseData, StatusData } from "./nodes/types";
-import { pruneGraph, toGraph } from "./graph";
+import { pruneGraph, toGraph, type Graph } from "./graph";
 import { dropRightWhile } from "es-toolkit";
 import { MarkerType, type Edge } from "@xyflow/react";
 import type { ReactNode } from "react";
@@ -19,7 +19,7 @@ export function buildData(program: Program): [Node[], Edge[]] {
   const graph = toGraph(program);
   pruneGraph(graph);
   const nodes = Array.from(graph.nodeEntries()).map(({ node, attributes }) =>
-    buildNode(node, attributes)
+    buildNode(node, attributes, graph)
   );
   const edges: Edge[] = Array.from(graph.edgeEntries()).map((edge): Edge => {
     return {
@@ -40,15 +40,14 @@ export function buildData(program: Program): [Node[], Edge[]] {
         edge.attributes.type === "parent"
           ? { stroke: "var(--color-blue)" }
           : undefined,
+      className:
+        edge.attributes.type === "dependency" ? "background" : undefined,
     };
   });
   return [nodes, edges];
 }
 
-export function buildNode(
-  node: string,
-  attributes: Omit<ProgramItem, "id" | "parentId" | "dependencies">
-) {
+export function buildNode(node: string, attributes: ProgramItem, graph: Graph) {
   let info: ValueInfo = { name: "object", fields: {} };
   if (typeof attributes.value === "object" && attributes.value !== null)
     info = valueInfo(attributes.value);
@@ -59,11 +58,17 @@ export function buildNode(
   };
   const statuses = buildStatuses(info, attributes);
   const type = statuses.length > 0 ? "status" : "basic";
+  const isUntracked =
+    graph.filterOutEdges(
+      attributes.id,
+      (edge, attrs) => attrs.type === "dependency"
+    ).length === 1;
   return {
     id: node,
     data: { ...data, statuses: type === "status" ? statuses : undefined },
     position: { x: 0, y: 0 },
     type: statuses.length > 0 ? "status" : "basic",
+    className: isUntracked ? "background" : undefined,
   };
 }
 function buildStatuses(
