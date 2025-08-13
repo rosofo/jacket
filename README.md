@@ -36,6 +36,29 @@ In this function you can write your setup code, and then return a `Promise<() =>
 
 Just clone this repo and run `npm i` then `npm run dev` or `npm run build; npm run preview`
 
+## Interpreting the UI
+
+### Graph
+
+Values produced by your code are represented as nodes. To the right of the node will be the values of relevant properties/object state:
+
+![A Float32Array node with properties](./assets/statuses.webp)
+
+A method call is represented by a 🔹 blue edge running from the parent object to the returned value:
+
+![A parent-child edge from GPUAdapter to GPUDevice. The edge is labelled with the method name 'requestDevice', a method of GPUAdapter which returned GPUDevice.](./assets/parent-method-call.webp)
+
+Arguments to method calls are connected with a 🩶 grey 'dependency' edge to the value which required them:
+
+![A faded out edge labelled with 'dependency'. This edge indicates that the source node Object was an argument to the method which created GPUSampler](./assets/dependency.webp)
+
+Finally any kind of edge can be either solid or dashed (animated). A dashed edge indicates that the target was created as part of per-frame rendering:
+
+![A dashed edge indicating that the process is 'ephemeral' i.e. it happens every frame.](./assets/ephemeral.webp)
+
+
+
+
 ## Under the hood
 
 Jacket can be boiled down to a pipeline with the following components:
